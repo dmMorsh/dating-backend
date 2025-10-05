@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Dbg Dating Backend",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/dating-backend",
+      "cwd": "${workspaceFolder}/dating-backend",
+      "env": {
+        "GOARCH": "amd64",
+        "GOOS": "windows"
+      }
+    }
+  ]
+}
