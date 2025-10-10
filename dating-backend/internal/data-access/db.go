@@ -9,7 +9,6 @@ import (
 
 var DB *sql.DB
 
-
 func InitDB() {
 	var err error
 	DB, err = sql.Open("sqlite", "./dating.db")
@@ -35,25 +34,15 @@ func InitDB() {
 		last_active TEXT
 	);`
 	
-	createLikes := `
-	CREATE TABLE IF NOT EXISTS likes (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		from_user INTEGER NOT NULL,
-		to_user INTEGER NOT NULL,
-    	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		is_match BOOLEAN
-	);`
-	
 	createSwipes := `
 	CREATE TABLE IF NOT EXISTS swipes (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	user_id INTEGER NOT NULL,
-	target_id INTEGER NOT NULL,
-	action TEXT CHECK(action IN ('like', 'dislike')) NOT NULL,
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	UNIQUE(user_id, target_id)
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL,
+		target_id INTEGER NOT NULL,
+		action TEXT CHECK(action IN ('like', 'dislike')) NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(user_id, target_id)
 	);`
-
 
 	createSessions := `
 	CREATE TABLE IF NOT EXISTS sessions (
@@ -90,10 +79,6 @@ func InitDB() {
 	);`
 
 	_, err = DB.Exec(createUsers)
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = DB.Exec(createLikes)
 	if err != nil {
 		log.Fatal(err)
 	}

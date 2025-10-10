@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	data_access "dating-backend/data-access"
-	models "dating-backend/models"
-	utils "dating-backend/utils"
+	data_access "dating-backend/internal/data-access"
+	models "dating-backend/internal/models"
+	utils "dating-backend/internal/utils"
 	"encoding/json"
 	"fmt"
 	"net/http"

@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	data_access "dating-backend/data-access"
-	middleware "dating-backend/middleware"
+	data_access "dating-backend/internal/data-access"
+	middleware "dating-backend/internal/middleware"
+	"dating-backend/internal/realtime"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -23,6 +24,11 @@ func SwipeHandler(w http.ResponseWriter, r *http.Request) {
 	var req SwipeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.TargetID == userID {
+		http.Error(w, "target_id can't be yours", http.StatusBadRequest)
 		return
 	}
 
@@ -50,22 +56,26 @@ func SwipeHandler(w http.ResponseWriter, r *http.Request) {
 		`, req.TargetID, userID).Scan(&count)
 
 		if err == nil && count > 0 {
-			// Взаимный лайк → создаём мэтч
-			_, _ = data_access.DB.Exec(`
-				INSERT OR IGNORE INTO matches (user1_id, user2_id)
-				VALUES (?, ?)
-			`, userID, req.TargetID)
 
-			// И создаём чат
-			_, _ = data_access.DB.Exec(`
-				INSERT OR IGNORE INTO chats (user1_id, user2_id)
-				VALUES (?, ?)
-			`, userID, req.TargetID)
-
+			chatID, err := data_access.CreateOrGetChat(userID, req.TargetID)
+			if err == nil {
+				// Отправляем уведомления обоим участникам через WebSocket
+				msg := map[string]any{
+					"type":    "match",
+					"message": "It's a match! 🎉",
+					"chat_id": chatID,
+					"user_id": req.TargetID,
+				}
+				realtime.ChatHub.SendToUser(userID, msg)
+				msg["user_id"] = userID
+				realtime.ChatHub.SendToUser(req.TargetID, msg)
+			}
+			
 			json.NewEncoder(w).Encode(map[string]string{
 				"status": "match",
 				"message": fmt.Sprintf("It's a match with user %d!", req.TargetID),
 			})
+
 			return
 		}
 	}

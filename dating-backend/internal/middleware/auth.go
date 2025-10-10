@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	data_access "dating-backend/data-access"
+	data_access "dating-backend/internal/data-access"
 )
 
 type ctxKey string

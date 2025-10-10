@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
-	data_access "dating-backend/data-access"
-	middleware "dating-backend/middleware"
+	data_access "dating-backend/internal/data-access"
+	middleware "dating-backend/internal/middleware"
 )
 
 func RecommendationsHandler(w http.ResponseWriter, r *http.Request) {

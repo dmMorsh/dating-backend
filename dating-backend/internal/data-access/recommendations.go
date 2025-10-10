@@ -1,7 +1,7 @@
 package data_access
 
 import (
-	"dating-backend/models"
+	"dating-backend/internal/models"
 	"math"
 	"sort"
 )

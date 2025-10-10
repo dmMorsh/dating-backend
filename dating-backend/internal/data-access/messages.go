@@ -2,7 +2,7 @@ package data_access
 
 import (
 	"database/sql"
-	"dating-backend/models"
+	"dating-backend/internal/models"
 )
 
 // 1. Сохранить сообщение

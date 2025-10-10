@@ -3,10 +3,10 @@ package handlers
 import (
 	"net/http"
 
-	data_access "dating-backend/data-access"
-	middleware "dating-backend/middleware"
-	models "dating-backend/models"
-	"dating-backend/realtime"
+	data_access "dating-backend/internal/data-access"
+	middleware "dating-backend/internal/middleware"
+	models "dating-backend/internal/models"
+	"dating-backend/internal/realtime"
 
 	"github.com/gorilla/websocket"
 )

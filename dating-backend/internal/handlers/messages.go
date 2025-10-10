@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
-	data_access "dating-backend/data-access"
-	middleware "dating-backend/middleware"
-	models "dating-backend/models"
+	data_access "dating-backend/internal/data-access"
+	middleware "dating-backend/internal/middleware"
+	models "dating-backend/internal/models"
 )
 
 func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
@@ -17,31 +17,17 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type MessageDto struct {
-		ReceiverID   string  `json:"receiver_id"`
-		Content      string  `json:"content"`
-	}
-
-	var msgDto MessageDto
-	if err := json.NewDecoder(r.Body).Decode(&msgDto); err != nil {
+	var msg models.Message
+	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
 		http.Error(w, "invalid body", http.StatusBadRequest)
 		return
 	}
-	// пока делаем через DTO
-	var msg models.Message
-	msg.Content = msgDto.Content
-	receiverID, err := strconv.ParseInt(msgDto.ReceiverID, 10, 64)
-	if err != nil {
-		http.Error(w, "invalid receiver_id", http.StatusBadRequest)
-		return
-	}
-	msg.ReceiverID = receiverID
+
 	if msg.ReceiverID == 0 || msg.Content == "" {
 		http.Error(w, "missing fields", http.StatusBadRequest)
 		return
 	}
 	msg.SenderID = userID
-
 
 	chatId, err := data_access.CreateOrGetChat(userID, msg.ReceiverID)
 	if err != nil {

@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	data_access "dating-backend/data-access"
-	middleware "dating-backend/middleware"
-	models "dating-backend/models"
+	data_access "dating-backend/internal/data-access"
+	middleware "dating-backend/internal/middleware"
+	models "dating-backend/internal/models"
 )
 
 // GET /me

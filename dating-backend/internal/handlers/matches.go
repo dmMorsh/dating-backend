@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	data_access "dating-backend/data-access"
-	middleware "dating-backend/middleware"
+	data_access "dating-backend/internal/data-access"
+	middleware "dating-backend/internal/middleware"
 )
 
 func MatchesHandler(w http.ResponseWriter, r *http.Request) {
