@@ -39,7 +39,7 @@ func TestUpsertAndHasLiked(t *testing.T) {
     res, err := DB.Exec(`INSERT INTO users (username, password) VALUES (?, ?)`, "a", "p")
     if err != nil { t.Fatalf("insert user: %v", err) }
     _, _ = res.LastInsertId()
-    res, err = DB.Exec(`INSERT INTO users (username, password) VALUES (?, ?)`, "b", "p")
+    _, err = DB.Exec(`INSERT INTO users (username, password) VALUES (?, ?)`, "b", "p")
     if err != nil { t.Fatalf("insert user: %v", err) }
 
     // assume ids 1 and 2
