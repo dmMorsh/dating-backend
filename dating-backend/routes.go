@@ -26,8 +26,16 @@ func registerRoutes() {
 	http.HandleFunc("/logout", middleware.Chain(handlers.LogoutHandler, protected...))
 	http.HandleFunc("/profiles", middleware.Chain(handlers.ProfilesHandler, protected...))
 	http.HandleFunc("/like/", middleware.Chain(handlers.LikeHandler, protected...))
+	http.HandleFunc("/swipe", middleware.Chain(handlers.SwipeHandler, protected...))
+	http.HandleFunc("/matches", middleware.Chain(handlers.MatchesHandler, protected...))
+	http.HandleFunc("/recommendations", middleware.Chain(handlers.RecommendationsHandler, protected...))
 
-	http.HandleFunc("GET /me", middleware.Chain(handlers.GetMyProfileHandler, protected...))
+	http.HandleFunc("/myprofile", middleware.Chain(handlers.GetMyProfileHandler, protected...))
 	http.HandleFunc("PUT /me", middleware.Chain(handlers.UpdateProfileHandler, protected...))
 	http.HandleFunc("/user/", middleware.Chain(handlers.GetUserHandler, protected...))
+
+	http.HandleFunc("/messages/send", middleware.Chain(handlers.SendMessageHandler, protected...))
+	http.HandleFunc("/messages", middleware.Chain(handlers.GetMessagesHandler, protected...))
+	http.HandleFunc("/ws/chat", middleware.Chain(handlers.ChatWebSocketHandler, protected...))
+
 }

@@ -1,3 +1,5 @@
 .vscode
 /dating-backend/dating.db
 /dating-backend/debug_test.exe
+dating.db
+debug_test.exe

@@ -40,8 +40,20 @@ func InitDB() {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		from_user INTEGER NOT NULL,
 		to_user INTEGER NOT NULL,
+    	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		is_match BOOLEAN
 	);`
+	
+	createSwipes := `
+	CREATE TABLE IF NOT EXISTS swipes (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	user_id INTEGER NOT NULL,
+	target_id INTEGER NOT NULL,
+	action TEXT CHECK(action IN ('like', 'dislike')) NOT NULL,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE(user_id, target_id)
+	);`
+
 
 	createSessions := `
 	CREATE TABLE IF NOT EXISTS sessions (
@@ -55,13 +67,26 @@ func InitDB() {
 		FOREIGN KEY(user_id) REFERENCES users(id)
 	);`
 
+	createChats := `
+	CREATE TABLE IF NOT EXISTS chats (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user1_id INTEGER NOT NULL,
+		user2_id INTEGER NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(user1_id, user2_id)
+	);`
+
 	createMessages := `
 	CREATE TABLE IF NOT EXISTS messages (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		match_id INTEGER,
-		sender_id INTEGER,
-		text TEXT,
-		sent_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		chat_id INTEGER NOT NULL,
+		sender_id INTEGER NOT NULL,
+		receiver_id INTEGER NOT NULL,
+		content TEXT NOT NULL,
+		is_read BOOLEAN DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (sender_id) REFERENCES users(id),
+		FOREIGN KEY (receiver_id) REFERENCES users(id)
 	);`
 
 	_, err = DB.Exec(createUsers)
@@ -72,7 +97,15 @@ func InitDB() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	_, err = DB.Exec(createSwipes)
+	if err != nil {
+		log.Fatal(err)
+	}
 	_, err = DB.Exec(createSessions)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = DB.Exec(createChats)
 	if err != nil {
 		log.Fatal(err)
 	}

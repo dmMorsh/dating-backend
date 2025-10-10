@@ -90,8 +90,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	row.Scan()
-
 	// Генерация токенов
 	accessToken := utils.GenerateToken(32)
 	refreshToken := utils.GenerateToken(64)

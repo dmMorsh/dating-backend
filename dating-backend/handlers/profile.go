@@ -126,8 +126,6 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(u)
 }
 
-
-
 func ProfilesHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := data_access.DB.Query("SELECT id, username, bio, photo_url FROM users")
 	if err != nil {
@@ -148,35 +146,4 @@ func ProfilesHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(profiles)
-}
-
-// В процессе...
-func LikeHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	fromID := r.Context().Value("userID").(int64)
-
-	toIDStr := r.URL.Path[len("/like/"):]
-	toID, err := strconv.ParseInt(toIDStr, 10, 64)
-	if err != nil {
-		http.Error(w, "Неверный ID", http.StatusBadRequest)
-		return
-	}
-
-	stmt, err := data_access.DB.Prepare("INSERT INTO likes(from_user, to_user) VALUES(?, ?)")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	_, err = stmt.Exec(fromID, toID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Лайк отправлен"})
 }
