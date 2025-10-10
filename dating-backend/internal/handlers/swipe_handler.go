@@ -38,24 +38,16 @@ func SwipeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Вставляем или обновляем свайп
-	_, err := data_access.DB.Exec(`
-		INSERT OR REPLACE INTO swipes (user_id, target_id, action)
-		VALUES (?, ?, ?)
-	`, userID, req.TargetID, req.Action)
-	if err != nil {
+	if err := data_access.UpsertSwipe(userID, req.TargetID, req.Action); err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
 	}
 
 	// Проверяем взаимный лайк
 	if req.Action == "like" {
-		var count int
-		err = data_access.DB.QueryRow(`
-			SELECT COUNT(*) FROM swipes
-			WHERE user_id = ? AND target_id = ? AND action = 'like'
-		`, req.TargetID, userID).Scan(&count)
+		mutual, err := data_access.HasLiked(req.TargetID, userID)
 
-		if err == nil && count > 0 {
+		if err == nil && mutual {
 
 			chatID, err := data_access.CreateOrGetChat(userID, req.TargetID)
 			if err == nil {

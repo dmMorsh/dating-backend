@@ -2,43 +2,10 @@ package data_access
 
 import (
 	"dating-backend/internal/models"
-	// "time"
 )
-
-// Добавить лайк
-// func AddLike(fromUserID, toUserID int64) error {
-// 	_, err := DB.Exec(`
-// 		INSERT OR IGNORE INTO likes (from_user, to_user, created_at)
-// 		VALUES (?, ?, ?)
-// 	`, fromUserID, toUserID, time.Now())
-// 	return err
-// }
-
-// Проверить, есть ли взаимный лайк
-// func IsMatch(userA, userB int64) (bool, error) {
-// 	var exists bool
-// 	err := DB.QueryRow(`
-// 		SELECT EXISTS(
-// 			SELECT 1 FROM likes AS l1
-// 			JOIN likes AS l2 ON l1.from_user = l2.to_user AND l1.to_user = l2.from_user
-// 			WHERE l1.from_user = ? AND l1.to_user = ?
-// 		)
-// 	`, userA, userB).Scan(&exists)
-// 	return exists, err
-// }
 
 // Получить всех мэтчей для пользователя
 func GetMatches(userID int64) ([]models.User, error) {
-	// rows, err := DB.Query(`
-	// 	SELECT u.id, u.username, u.name, u.bio, u.photo_url
-	// 	FROM users u
-	// 	WHERE u.id IN (
-	// 		SELECT l2.from_user
-	// 		FROM likes l1
-	// 		JOIN likes l2 ON l1.from_user = l2.to_user AND l1.to_user = l2.from_user
-	// 		WHERE l1.from_user = ?
-	// 	)
-	// `, userID)
 	rows, err := DB.Query(`
 		SELECT u.id, u.username, u.name, u.bio, u.photo_url
 		FROM users u
@@ -62,4 +29,26 @@ func GetMatches(userID int64) ([]models.User, error) {
 		matches = append(matches, u)
 	}
 	return matches, nil
+}
+
+// UpsertSwipe вставляет или обновляет запись о свайпе
+func UpsertSwipe(userID, targetID int64, action string) error {
+	_, err := DB.Exec(`
+		INSERT OR REPLACE INTO swipes (user_id, target_id, action)
+		VALUES (?, ?, ?)
+	`, userID, targetID, action)
+	return err
+}
+
+// HasLiked проверяет, поставил ли userID лайк targetID
+func HasLiked(userID, targetID int64) (bool, error) {
+	var cnt int
+	err := DB.QueryRow(`
+		SELECT COUNT(*) FROM swipes
+		WHERE user_id = ? AND target_id = ? AND action = 'like'
+	`, userID, targetID).Scan(&cnt)
+	if err != nil {
+		return false, err
+	}
+	return cnt > 0, nil
 }

@@ -1,7 +1,6 @@
 package data_access
 
 import (
-	"database/sql"
 	"dating-backend/internal/models"
 )
 
@@ -69,25 +68,36 @@ func GetMessagesBetweenUsers(user1ID, user2ID int64) ([]models.Message, error) {
 }
 
 func CreateOrGetChat(userA, userB int64) (int64, error) {
-	var chatID int64
+	// Normalize order so (a,b) and (b,a) map to same chat
+	if userA > userB {
+		userA, userB = userB, userA
+	}
 
-	// Проверяем, существует ли уже чат
-	err := DB.QueryRow(`
+	// Use a transaction and INSERT OR IGNORE to avoid race conditions
+	tx, err := DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	// Try to insert (will fail silently on unique constraint)
+	_, err = tx.Exec(`INSERT OR IGNORE INTO chats (user1_id, user2_id) VALUES (?, ?)`, userA, userB)
+	if err != nil {
+		return 0, err
+	}
+
+	var chatID int64
+	err = tx.QueryRow(`
 		SELECT id FROM chats
 		WHERE (user1_id = ? AND user2_id = ?)
 		   OR (user1_id = ? AND user2_id = ?)
 	`, userA, userB, userB, userA).Scan(&chatID)
-
-	if err == sql.ErrNoRows {
-		// Создаем новый чат
-		res, err := DB.Exec(`INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)`, userA, userB)
-		if err != nil {
-			return 0, err
-		}
-		chatID, _ = res.LastInsertId()
-	} else if err != nil {
+	if err != nil {
 		return 0, err
 	}
 
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
 	return chatID, nil
 }
