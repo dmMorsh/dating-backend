@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	data_access "dating-backend/internal/data-access"
-	//middleware "dating-backend/internal/middleware"
 	models "dating-backend/internal/models"
 	"dating-backend/internal/realtime"
 
@@ -18,12 +17,6 @@ var upgrader = websocket.Upgrader{
 }
 
 func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
-	// userID, err := middleware.UserIDFromContext(r.Context())
-	// if err != nil {
-	// 	http.Error(w, "unauthorized", http.StatusUnauthorized)
-	// 	return
-	// }
-
 	session := r.URL.Query().Get("session")
 	userID, ok := sessionTokens[session]
 	if !ok || userID < 0 {
@@ -39,16 +32,6 @@ func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 
 	realtime.ChatHub.Add(userID, conn)
 	delete(sessionTokens, session) // одноразовый
-
-	// После добавления пользователя в хаб, отправляем ему непрочитанные сообщения
-					// unread, err := data_access.GetUnreadMessages(userID)
-					// if err == nil && len(unread) > 0 {
-					// 	conn.WriteJSON(map[string]interface{}{
-					// 		"type":		"unread_messages",
-					// 		"content":	unread,
-					// 	})
-					// 	data_access.MarkMessagesAsRead(userID)
-					// }
 
 	defer func() {
 		realtime.ChatHub.Remove(userID)
