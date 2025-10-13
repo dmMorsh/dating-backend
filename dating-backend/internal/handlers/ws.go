@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	data_access "dating-backend/internal/data-access"
-	middleware "dating-backend/internal/middleware"
+	//middleware "dating-backend/internal/middleware"
 	models "dating-backend/internal/models"
 	"dating-backend/internal/realtime"
 
@@ -18,9 +18,16 @@ var upgrader = websocket.Upgrader{
 }
 
 func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
-	userID, err := middleware.UserIDFromContext(r.Context())
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	// userID, err := middleware.UserIDFromContext(r.Context())
+	// if err != nil {
+	// 	http.Error(w, "unauthorized", http.StatusUnauthorized)
+	// 	return
+	// }
+
+	session := r.URL.Query().Get("session")
+	userID, ok := sessionTokens[session]
+	if !ok || userID < 0 {
+		http.Error(w, "invalid session token", http.StatusUnauthorized)
 		return
 	}
 
@@ -31,16 +38,17 @@ func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	realtime.ChatHub.Add(userID, conn)
+	delete(sessionTokens, session) // одноразовый
 
 	// После добавления пользователя в хаб, отправляем ему непрочитанные сообщения
-	unread, err := data_access.GetUnreadMessages(userID)
-	if err == nil && len(unread) > 0 {
-		conn.WriteJSON(map[string]interface{}{
-			"type":      "unread_messages",
-			"messages":  unread,
-		})
-		data_access.MarkMessagesAsRead(userID)
-	}
+					// unread, err := data_access.GetUnreadMessages(userID)
+					// if err == nil && len(unread) > 0 {
+					// 	conn.WriteJSON(map[string]interface{}{
+					// 		"type":		"unread_messages",
+					// 		"content":	unread,
+					// 	})
+					// 	data_access.MarkMessagesAsRead(userID)
+					// }
 
 	defer func() {
 		realtime.ChatHub.Remove(userID)
@@ -49,15 +57,17 @@ func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		var msg struct {
-			ReceiverID int64  `json:"receiver_id"`
-			Content    string `json:"content"`
+			ChatID		int64	`json:"chat_id"`
+			SenderID	int64	`json:"sender_id"`
+			ReceiverID	int64	`json:"receiver_id"`
+			Content		string	`json:"content"`
 		}
 		if err := conn.ReadJSON(&msg); err != nil {
 			break // соединение закрыто
 		}
 
 		// сохраняем в БД
-		saveErr := SaveMessage(userID, msg.ReceiverID, msg.Content)
+		saveErr := SaveMessage(msg.ChatID, userID, msg.ReceiverID, msg.Content)
 		if saveErr != nil {
 			conn.WriteJSON(map[string]string{"error": "failed to save message"})
 			continue
@@ -65,14 +75,17 @@ func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 
 		// отправляем получателю, если он онлайн
 		realtime.ChatHub.SendToUser(msg.ReceiverID, map[string]interface{}{
-			"sender_id": userID,
-			"content":   msg.Content,
+			"type":		"message",
+			"content":	msg.Content,
+			"chat_id":	msg.ChatID,
+			"user_id":	userID,
 		})
 	}
 }
 
-func SaveMessage(senderID, receiverID int64, content string) error {
+func SaveMessage(chatID, senderID, receiverID int64, content string) error {
 	msg := models.Message{
+		ChatID:     chatID,
 		SenderID:   senderID,
 		ReceiverID: receiverID,
 		Content:    content,

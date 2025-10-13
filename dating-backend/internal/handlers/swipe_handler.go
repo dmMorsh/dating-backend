@@ -54,7 +54,7 @@ func SwipeHandler(w http.ResponseWriter, r *http.Request) {
 				// Отправляем уведомления обоим участникам через WebSocket
 				msg := map[string]any{
 					"type":    "match",
-					"message": "It's a match! 🎉",
+					"content": "It's a match! 🎉",
 					"chat_id": chatID,
 					"user_id": req.TargetID,
 				}
@@ -65,7 +65,7 @@ func SwipeHandler(w http.ResponseWriter, r *http.Request) {
 			
 			json.NewEncoder(w).Encode(map[string]string{
 				"status": "match",
-				"message": fmt.Sprintf("It's a match with user %d!", req.TargetID),
+				"content": fmt.Sprintf("It's a match with user %d!", req.TargetID),
 			})
 
 			return

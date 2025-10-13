@@ -26,6 +26,8 @@ func NewRouter() http.Handler {
         r.Post("/register", http.HandlerFunc(handlers.RegisterHandler))
         r.Post("/login", 	http.HandlerFunc(handlers.LoginHandler))
         r.Post("/refresh", 	http.HandlerFunc(handlers.RefreshHandler))
+		r.Get("/ws/chat", 	http.HandlerFunc(handlers.ChatWebSocketHandler))
+
     })
 
     // Защищенные маршруты — используем chi-group с chi-совместимым Auth middleware
@@ -45,7 +47,10 @@ func NewRouter() http.Handler {
 
 		r.Post("/messages/send", 	http.HandlerFunc(handlers.SendMessageHandler))
 		r.Get("/messages", 			http.HandlerFunc(handlers.GetMessagesHandler))
-		r.Get("/ws/chat", 			http.HandlerFunc(handlers.ChatWebSocketHandler))
+		r.Get("/chats", 			http.HandlerFunc(handlers.GetChatsHandler))
+		r.Get("/ws/start", 			http.HandlerFunc(handlers.StartWebSocketSession))
+		// r.Get("/ws/chat", 			http.HandlerFunc(handlers.ChatWebSocketHandler))
+		r.Get("/chat/messages/{chatId}", 	http.HandlerFunc(handlers.GetChatMessagesHandler))
     })
 
     return r

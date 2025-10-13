@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	data_access "dating-backend/internal/data-access"
 	middleware "dating-backend/internal/middleware"
@@ -64,6 +65,39 @@ func GetMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msgs, err := data_access.GetMessagesBetweenUsers(userID, partnerID)
+	if err != nil {
+		http.Error(w, "failed to fetch messages", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(msgs)
+}
+
+func GetChatsHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	msgs, err := data_access.GetChatsForUser(userID)
+	if err != nil {
+		http.Error(w, "failed to fetch chats", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(msgs)
+}
+
+func GetChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/chat/messages/")
+	chatId, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	msgs, err := data_access.GetMessagesForChat(chatId)
 	if err != nil {
 		http.Error(w, "failed to fetch messages", http.StatusInternalServerError)
 		return

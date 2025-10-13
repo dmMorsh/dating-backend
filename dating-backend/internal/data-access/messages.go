@@ -2,6 +2,7 @@ package data_access
 
 import (
 	"dating-backend/internal/models"
+	"time"
 )
 
 // 1. Сохранить сообщение
@@ -100,4 +101,74 @@ func CreateOrGetChat(userA, userB int64) (int64, error) {
 		return 0, err
 	}
 	return chatID, nil
+}
+
+func GetChatsForUser(userID int64) ([]models.Chat, error) {
+	rows, err := DB.Query(`
+		SELECT 
+		c.id, 
+		c.user1_id, 
+		c.user2_id, 
+		c.created_at, 
+		IFNULL(m.last_message, '') AS last_message, 
+		IFNULL(m.last_message_time, '') AS last_message_time,
+		IFNULL(m.last_message_user, 0) AS last_message_user
+		FROM chats c
+		LEFT JOIN (
+			SELECT 
+			chat_id, 
+			content AS last_message, 
+			sender_id AS last_message_user,
+			MAX(created_at) AS last_message_time
+			FROM messages
+			GROUP BY chat_id
+		) m ON c.id = m.chat_id
+		WHERE c.user1_id = ? OR c.user2_id = ?
+	`, userID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var chats []models.Chat
+	for rows.Next() {
+		var c models.Chat
+		var lastMessageTimeStr string
+		if err := rows.Scan(&c.ID, &c.User1ID, &c.User2ID, &c.CreatedAt, &c.LastMessage,
+			&lastMessageTimeStr, &c.LastMessageUser); err != nil {
+			return nil, err
+		}
+		if lastMessageTimeStr != "" {
+			parsedTime, err := time.Parse("2006-01-02 15:04:05", lastMessageTimeStr)
+			if err != nil {
+				return nil, err
+			}
+			c.LastMessageTime = parsedTime
+		}
+		chats = append(chats, c)
+	}
+	return chats, nil
+}
+
+func GetMessagesForChat(chatID int64) ([]models.Message, error) {
+	rows, err := DB.Query(`
+		SELECT id, sender_id, receiver_id, content, is_read, created_at
+		FROM messages
+		WHERE chat_id = ?
+		ORDER BY created_at ASC
+	`, chatID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var msgs []models.Message
+	for rows.Next() {
+		var m models.Message
+		if err := rows.Scan(&m.ID, &m.SenderID, &m.ReceiverID, &m.Content, &m.IsRead, &m.CreatedAt); err != nil {
+			return nil, err
+		}
+		msgs = append(msgs, m)
+	}
+	return msgs, nil
 }
