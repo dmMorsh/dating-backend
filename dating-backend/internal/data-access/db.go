@@ -23,7 +23,6 @@ func InitDB() {
 		password TEXT NOT NULL,
 		name TEXT,
 		gender TEXT,
-		age INTEGER,
 		interested_in TEXT,
 		bio TEXT,
 		photo_url TEXT,
@@ -53,6 +52,7 @@ func InitDB() {
 		refresh_token TEXT NOT NULL UNIQUE,
 		access_expires DATETIME NOT NULL,
 		refresh_expires DATETIME NOT NULL,
+		UNIQUE(user_id, device_id)
 		FOREIGN KEY(user_id) REFERENCES users(id)
 	);`
 
@@ -98,4 +98,9 @@ func InitDB() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Применяем миграции
+	if err := migrate(DB); err != nil {
+        log.Fatal("Migration failed:", err)
+    }
 }

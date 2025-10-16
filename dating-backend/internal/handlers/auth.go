@@ -97,7 +97,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	refreshExp := time.Now().Add(7 * 24 * time.Hour)
 
 	// Сохраняем в БД
-	_, err = data_access.DB.Exec(`INSERT INTO sessions (user_id, device_id, access_token, refresh_token, access_expires, refresh_expires)
+	_, err = data_access.DB.Exec(`INSERT OR REPLACE INTO sessions (user_id, device_id, access_token, refresh_token, access_expires, refresh_expires)
 	                  VALUES (?, ?, ?, ?, ?, ?)`,
 		id, credentials.DeviceID, accessToken, refreshToken, accessExp, refreshExp)
 	if err != nil {

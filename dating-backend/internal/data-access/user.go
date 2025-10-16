@@ -14,7 +14,7 @@ func GetUserByID(id int64) (*models.User, error) {
 		username,
 		IFNULL(name, ''),
 		IFNULL(gender, ''),
-		IFNULL(age, 0),
+		birthday,
 		IFNULL(interested_in, ''),
 		IFNULL(bio, ''),
 		IFNULL(photo_url, ''),
@@ -25,7 +25,7 @@ func GetUserByID(id int64) (*models.User, error) {
 		IFNULL(last_active, '')
 	FROM users WHERE id = ?`, id)
 
-	err := row.Scan(&u.ID, &u.Username, &u.Name, &u.Gender, &u.Age, 
+	err := row.Scan(&u.ID, &u.Username, &u.Name, &u.Gender, &u.Birthday,
 		&u.InterestedIn, &u.Bio, &u.PhotoURL, &u.Location, &u.Latitude, 
 		&u.Longitude, &u.CreatedAt, &u.LastActive)
 	if err == sql.ErrNoRows {
@@ -40,18 +40,18 @@ func GetUserByID(id int64) (*models.User, error) {
 func UpdateUser(u *models.User) error {
 	_, err := DB.Exec(`
 		UPDATE users SET 
-		name=?, 
-		gender=?, 
-		age=?, 
-		interested_in=?, 
-		bio=?, 
-		photo_url=?, 
-		location=?, 
-		latitude=?, 
-		longitude=?, 
+		name=?,
+		gender=?,
+		birthday=?,
+		interested_in=?,
+		bio=?,
+		photo_url=?,
+		location=?,
+		latitude=?,
+		longitude=?,
 		last_active=CURRENT_TIMESTAMP
 		WHERE id=?`,
-		u.Name, u.Gender, u.Age, u.InterestedIn, u.Bio, u.PhotoURL, 
+		u.Name, u.Gender, u.Birthday, u.InterestedIn, u.Bio, u.PhotoURL, 
 		u.Location, u.Latitude, u.Longitude, u.ID,
 	)
 	return err

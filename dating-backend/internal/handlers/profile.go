@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	data_access "dating-backend/internal/data-access"
 	middleware "dating-backend/internal/middleware"
@@ -46,6 +47,8 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u.Password = ""
+	u.Longitude = 0 // прячем координаты
+	u.Latitude = 0
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(u)
 }
@@ -54,7 +57,7 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 type UpdateProfileRequest struct {
 	Name         *string  `json:"name,omitempty"`
 	Gender       *string  `json:"gender,omitempty"`
-	Age          *int     `json:"age,omitempty"`
+	Birthday   *JSONDate  `json:"birthday,omitempty"`
 	InterestedIn *string  `json:"interested_in,omitempty"`
 	Bio          *string  `json:"bio,omitempty"`
 	PhotoURL     *string  `json:"photo_url,omitempty"`
@@ -94,8 +97,9 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 	if req.Gender != nil {
 		u.Gender = *req.Gender
 	}
-	if req.Age != nil {
-		u.Age = *req.Age
+	if req.Birthday != nil {
+		t := req.Birthday.Time()
+		u.Birthday = &t
 	}
 	if req.InterestedIn != nil {
 		u.InterestedIn = *req.InterestedIn
@@ -109,10 +113,10 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 	if req.Location != nil {
 		u.Location = *req.Location
 	}
-	if req.Latitude != nil {
+	if req.Latitude != nil && *req.Latitude != 0.0 {
 		u.Latitude = *req.Latitude
 	}
-	if req.Longitude != nil {
+	if req.Longitude != nil && *req.Longitude != 0.0 {
 		u.Longitude = *req.Longitude
 	}
 
@@ -146,4 +150,37 @@ func ProfilesHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(profiles)
+}
+
+
+
+type JSONDate time.Time
+
+func (jt *JSONDate) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	if s == "" {
+		return nil
+	}
+
+	// пробуем несколько форматов
+	layouts := []string{
+		time.RFC3339,              // 2006-01-02T15:04:05Z07:00
+		"2006-01-02T15:04:05",     // без зоны
+		"2006-01-02",              // только дата
+	}
+
+	var t time.Time
+	var err error
+	for _, layout := range layouts {
+		t, err = time.Parse(layout, s)
+		if err == nil {
+			*jt = JSONDate(t)
+			return nil
+		}
+	}
+	return err
+}
+
+func (jt JSONDate) Time() time.Time {
+	return time.Time(jt)
 }

@@ -15,7 +15,7 @@ func GetRecommendations(userID int64, limit int, maxDistanceKm float64) ([]model
 
     // выбираем пользователей, которых он ещё не свайпнул
     rows, err := DB.Query(`
-        SELECT id, username, name, gender, age, interested_in, bio, photo_url, latitude, longitude
+        SELECT id, username, name, gender, birthday, interested_in, bio, photo_url, latitude, longitude
         FROM users
         WHERE id != ? 
           AND id NOT IN (SELECT target_id FROM swipes WHERE user_id = ?)
@@ -28,7 +28,7 @@ func GetRecommendations(userID int64, limit int, maxDistanceKm float64) ([]model
     var recs []models.User
     for rows.Next() {
         var u models.User
-        err := rows.Scan(&u.ID, &u.Username, &u.Name, &u.Gender, &u.Age, &u.InterestedIn, &u.Bio, &u.PhotoURL, &u.Latitude, &u.Longitude)
+        err := rows.Scan(&u.ID, &u.Username, &u.Name, &u.Gender, &u.Birthday, &u.InterestedIn, &u.Bio, &u.PhotoURL, &u.Latitude, &u.Longitude)
         if err != nil {
             return nil, err
         }

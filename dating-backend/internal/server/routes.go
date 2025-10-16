@@ -37,7 +37,7 @@ func NewRouter() http.Handler {
 		r.Handle("/logout", 		http.HandlerFunc(handlers.LogoutHandler))
 		
         r.Get("/profiles", 			handlers.ProfilesHandler)
-		r.Get("/myprofile", 		http.HandlerFunc(handlers.GetMyProfileHandler))
+		r.Get("/me", 				http.HandlerFunc(handlers.GetMyProfileHandler))
 		r.Put("/me", 				http.HandlerFunc(handlers.UpdateProfileHandler))
 		r.Get("/user/{id}", 		http.HandlerFunc(handlers.GetUserHandler))
 		
