@@ -12,4 +12,5 @@ type Chat struct {
 	LastMessage     string    `json:"last_message,omitempty"`      // Optional field for last message preview
 	LastMessageTime time.Time `json:"last_message_time,omitempty"` // Optional field for last message time
 	LastMessageUser int64	  `json:"last_message_user,omitempty"` // Optional field for last message user
+	IsRead			bool      `json:"is_read"`
 }

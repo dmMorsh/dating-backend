@@ -94,7 +94,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	accessToken := utils.GenerateToken(32)
 	refreshToken := utils.GenerateToken(64)
 	accessExp := time.Now().Add(15 * time.Minute)
-	refreshExp := time.Now().Add(7 * 24 * time.Hour)
+	refreshExp := time.Now().Add(30 * 24 * time.Hour)
 
 	// Сохраняем в БД
 	_, err = data_access.DB.Exec(`INSERT OR REPLACE INTO sessions (user_id, device_id, access_token, refresh_token, access_expires, refresh_expires)
@@ -149,9 +149,10 @@ func RefreshHandler(w http.ResponseWriter, r *http.Request) {
 
 	newAccess := utils.GenerateToken(32)
 	newExp := time.Now().Add(15 * time.Minute)
+	newRefreshExp := time.Now().Add(30 * 24 * time.Hour)
 
-	_, err = data_access.DB.Exec(`UPDATE sessions SET access_token=?, access_expires=? WHERE user_id = ? AND refresh_token=?`,
-		newAccess, newExp, req.UserID, req.RefreshToken)
+	_, err = data_access.DB.Exec(`UPDATE sessions SET access_token=?, access_expires=?, refresh_expires=? WHERE user_id = ? AND refresh_token=?`,
+		newAccess, newExp, newRefreshExp, req.UserID, req.RefreshToken)
 	if err != nil {
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return

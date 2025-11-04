@@ -10,6 +10,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+//ЧАТ НЕ РАБОТАЕТ В РЕЖИМЕ РАСШИРЕННЫХ ЛОГОВ
+//
+//
+//
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true // Разрешаем любые домены (пока)
@@ -50,7 +54,7 @@ func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// сохраняем в БД
-		saveErr := SaveMessage(msg.ChatID, userID, msg.ReceiverID, msg.Content)
+		msgId, saveErr := SaveMessage(msg.ChatID, userID, msg.ReceiverID, msg.Content)
 		if saveErr != nil {
 			conn.WriteJSON(map[string]string{"error": "failed to save message"})
 			continue
@@ -58,6 +62,7 @@ func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 
 		// отправляем получателю, если он онлайн
 		realtime.ChatHub.SendToUser(msg.ReceiverID, map[string]interface{}{
+			"id":		msgId,
 			"type":		"message",
 			"content":	msg.Content,
 			"chat_id":	msg.ChatID,
@@ -66,7 +71,7 @@ func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func SaveMessage(chatID, senderID, receiverID int64, content string) error {
+func SaveMessage(chatID, senderID, receiverID int64, content string) (int64, error) {
 	msg := models.Message{
 		ChatID:     chatID,
 		SenderID:   senderID,

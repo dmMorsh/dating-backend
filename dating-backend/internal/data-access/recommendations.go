@@ -2,6 +2,7 @@ package data_access
 
 import (
 	"dating-backend/internal/models"
+	"errors"
 	"math"
 	"sort"
 )
@@ -12,6 +13,12 @@ func GetRecommendations(userID int64, limit int, maxDistanceKm float64) ([]model
     if err != nil {
         return nil, err
     }
+
+    if me.Latitude == nil || me.Longitude == nil {
+        return nil, errors.New("current user has no coordinates")
+    }
+    lat1 := *me.Latitude
+    lon1 := *me.Longitude
 
     // выбираем пользователей, которых он ещё не свайпнул
     rows, err := DB.Query(`
@@ -32,8 +39,12 @@ func GetRecommendations(userID int64, limit int, maxDistanceKm float64) ([]model
         if err != nil {
             return nil, err
         }
+        // пропускаем пользователей без координат
+        if u.Latitude == nil || u.Longitude == nil {
+            continue
+        }
         // вычисляем расстояние
-        dist := haversine(me.Latitude, me.Longitude, u.Latitude, u.Longitude)
+        dist := haversine(lat1, lon1, *u.Latitude, *u.Longitude)
         if dist <= maxDistanceKm {
             recs = append(recs, u)
         }
@@ -41,8 +52,8 @@ func GetRecommendations(userID int64, limit int, maxDistanceKm float64) ([]model
 
     // можно отсортировать по расстоянию
     sort.Slice(recs, func(i, j int) bool {
-        di := haversine(me.Latitude, me.Longitude, recs[i].Latitude, recs[i].Longitude)
-        dj := haversine(me.Latitude, me.Longitude, recs[j].Latitude, recs[j].Longitude)
+        di := haversine(lat1, lon1, *recs[i].Latitude, *recs[i].Longitude)
+        dj := haversine(lat1, lon1, *recs[j].Latitude, *recs[j].Longitude)
         return di < dj
     })
 

@@ -37,7 +37,7 @@ func (h *Hub) SendToUser(userID int64, data interface{}) error {
 	conn, ok := h.clients[userID]
 	h.mu.RUnlock()
 	if !ok {
-		return nil // пользователь офлайн
+		return nil // user offline
 	}
 	return conn.Conn.WriteJSON(data)
 }

@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	data_access "dating-backend/internal/data-access"
 	middleware "dating-backend/internal/middleware"
 	models "dating-backend/internal/models"
+	"dating-backend/internal/utils"
 )
 
 // GET /me
@@ -46,24 +46,26 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	u.Age = utils.GetAge(u.Birthday)
+	u.Birthday = nil // прячем дату рождения
 	u.Password = ""
-	u.Longitude = 0 // прячем координаты
-	u.Latitude = 0
+	u.Longitude = nil // прячем координаты
+	u.Latitude = nil
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(u)
 }
 
 // PUT /me
 type UpdateProfileRequest struct {
-	Name         *string  `json:"name,omitempty"`
-	Gender       *string  `json:"gender,omitempty"`
-	Birthday   *JSONDate  `json:"birthday,omitempty"`
-	InterestedIn *string  `json:"interested_in,omitempty"`
-	Bio          *string  `json:"bio,omitempty"`
-	PhotoURL     *string  `json:"photo_url,omitempty"`
-	Location     *string  `json:"location,omitempty"`
-	Latitude     *float64 `json:"latitude,omitempty"`
-	Longitude    *float64 `json:"longitude,omitempty"`
+	Name         	*string  `json:"name,omitempty"`
+	Gender       	*string  `json:"gender,omitempty"`
+	Birthday		*utils.JSONDate	`json:"birthday,omitempty"`
+	InterestedIn 	*string  `json:"interested_in,omitempty"`
+	Bio          	*string  `json:"bio,omitempty"`
+	PhotoURL     	*string  `json:"photo_url,omitempty"`
+	Location     	*string  `json:"location,omitempty"`
+	Latitude     	*float64 `json:"latitude,omitempty"`
+	Longitude    	*float64 `json:"longitude,omitempty"`
 }
 
 func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
@@ -111,13 +113,13 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 		u.PhotoURL = *req.PhotoURL
 	}
 	if req.Location != nil {
-		u.Location = *req.Location
+		u.Location = req.Location
 	}
 	if req.Latitude != nil && *req.Latitude != 0.0 {
-		u.Latitude = *req.Latitude
+		u.Latitude = req.Latitude
 	}
 	if req.Longitude != nil && *req.Longitude != 0.0 {
-		u.Longitude = *req.Longitude
+		u.Longitude = req.Longitude
 	}
 
 	if err := data_access.UpdateUser(u); err != nil {
@@ -131,7 +133,12 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ProfilesHandler(w http.ResponseWriter, r *http.Request) {
-	rows, err := data_access.DB.Query("SELECT id, username, bio, photo_url FROM users")
+	userID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	rows, err := data_access.DB.Query("SELECT id, name, bio, photo_url, birthday FROM users WHERE id != ?", userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -141,46 +148,15 @@ func ProfilesHandler(w http.ResponseWriter, r *http.Request) {
 	var profiles []models.User
 	for rows.Next() {
 		var u models.User
-		err := rows.Scan(&u.ID, &u.Username, &u.Bio, &u.PhotoURL)
+		err := rows.Scan(&u.ID, &u.Name, &u.Bio, &u.PhotoURL, &u.Birthday)
 		if err != nil {
 			continue
 		}
+		u.Age = utils.GetAge(u.Birthday)
+		u.Birthday = nil // прячем дату рождения
 		profiles = append(profiles, u)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(profiles)
-}
-
-
-
-type JSONDate time.Time
-
-func (jt *JSONDate) UnmarshalJSON(b []byte) error {
-	s := strings.Trim(string(b), `"`)
-	if s == "" {
-		return nil
-	}
-
-	// пробуем несколько форматов
-	layouts := []string{
-		time.RFC3339,              // 2006-01-02T15:04:05Z07:00
-		"2006-01-02T15:04:05",     // без зоны
-		"2006-01-02",              // только дата
-	}
-
-	var t time.Time
-	var err error
-	for _, layout := range layouts {
-		t, err = time.Parse(layout, s)
-		if err == nil {
-			*jt = JSONDate(t)
-			return nil
-		}
-	}
-	return err
-}
-
-func (jt JSONDate) Time() time.Time {
-	return time.Time(jt)
 }

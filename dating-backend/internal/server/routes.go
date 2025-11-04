@@ -40,17 +40,20 @@ func NewRouter() http.Handler {
 		r.Get("/me", 				http.HandlerFunc(handlers.GetMyProfileHandler))
 		r.Put("/me", 				http.HandlerFunc(handlers.UpdateProfileHandler))
 		r.Get("/user/{id}", 		http.HandlerFunc(handlers.GetUserHandler))
+		r.Get("/followers", 		http.HandlerFunc(handlers.MyFollowersHandler))
 		
 		r.Post("/swipe", 			http.HandlerFunc(handlers.SwipeHandler))
 		r.Get("/matches", 			http.HandlerFunc(handlers.MatchesHandler))
 		r.Get("/recommendations", 	http.HandlerFunc(handlers.RecommendationsHandler))
+		r.Get("/profiles/search", 	http.HandlerFunc(handlers.GetSwipeCandidatesHandler))
+		r.Get("/clear/my/swipes", 	http.HandlerFunc(handlers.ClearMySwipesHandler))
 
-		r.Post("/messages/send", 	http.HandlerFunc(handlers.SendMessageHandler))
-		r.Get("/messages", 			http.HandlerFunc(handlers.GetMessagesHandler))
-		r.Get("/chats", 			http.HandlerFunc(handlers.GetChatsHandler))
 		r.Get("/ws/start", 			http.HandlerFunc(handlers.StartWebSocketSession))
-		// r.Get("/ws/chat", 			http.HandlerFunc(handlers.ChatWebSocketHandler))
+		r.Post("/messages/send", 	http.HandlerFunc(handlers.SendMessageHandler))
+		r.Get("/chats", 			http.HandlerFunc(handlers.GetChatsHandler))
 		r.Get("/chat/messages/{chatId}", 	http.HandlerFunc(handlers.GetChatMessagesHandler))
+		r.Get("/chat/read/{chatId}", 	http.HandlerFunc(handlers.MarkChatMessagesAsReadHandler))
+		r.Post("/messages/read", 	http.HandlerFunc(handlers.MarkMessagesReadHandler))
     })
 
     return r

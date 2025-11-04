@@ -2,11 +2,10 @@ package middleware
 
 import (
 	"context"
+	data_access "dating-backend/internal/data-access"
 	"net/http"
 	"strings"
 	"time"
-
-	data_access "dating-backend/internal/data-access"
 )
 
 type ctxKey string

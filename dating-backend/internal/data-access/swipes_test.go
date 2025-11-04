@@ -63,9 +63,9 @@ func TestCreateOrGetChat_Uniqueness(t *testing.T) {
     DB.Exec(`INSERT INTO users (username, password) VALUES (?, ?)`, "a", "p")
     DB.Exec(`INSERT INTO users (username, password) VALUES (?, ?)`, "b", "p")
 
-    id1, err := CreateOrGetChat(1, 2)
+    _, id1, err := CreateOrGetChat(1, 2)
     if err != nil { t.Fatalf("create: %v", err) }
-    id2, err := CreateOrGetChat(2, 1)
+    _, id2, err := CreateOrGetChat(2, 1)
     if err != nil { t.Fatalf("get: %v", err) }
     if id1 != id2 {
         t.Fatalf("expected same chat id, got %d and %d", id1, id2)
