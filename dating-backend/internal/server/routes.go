@@ -9,7 +9,12 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// NewRouter создает и возвращает настроенный chi.Router
+// NewRouter creates and returns a configured chi HTTP handler.
+//
+// It wires application routes and middleware. Public routes are registered
+// without authentication; protected routes are grouped and require the
+// `middleware.ChiAuthMiddleware` to set authenticated user id in the
+// request context.
 func NewRouter() http.Handler {
     r := chi.NewRouter()
 

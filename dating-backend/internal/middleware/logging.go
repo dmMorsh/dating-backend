@@ -5,6 +5,9 @@ import (
 	"net/http"
 )
 
+// LoggingMiddleware logs each incoming HTTP request and then calls the next
+// handler. This is a minimal middleware suitable for development and
+// lightweight production logging.
 func LoggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         log.Printf("[%s] %s %s", r.RemoteAddr, r.Method, r.URL.Path)

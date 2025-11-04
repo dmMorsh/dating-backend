@@ -5,14 +5,24 @@ import (
 	"time"
 )
 
+// SaveMessage persists a message and returns the new message id.
+// The database sets the created_at timestamp.
 func SaveMessage(msg *models.Message) (int64, error) {
-	res, _ := DB.Exec(`
+	res, err := DB.Exec(`
 		INSERT INTO messages (chat_id, sender_id, receiver_id, content, is_read, created_at)
 		VALUES (?, ?, ?, ?, 0, datetime('now'))
 	`, msg.ChatID, msg.SenderID, msg.ReceiverID, msg.Content)
+	if err != nil {
+		return 0, err
+	}
 	return res.LastInsertId()
 }
 
+// CreateOrGetChat returns whether a new chat was created, the chat id and
+// an error if any. It normalizes user order so that (a,b) and (b,a) map
+// to the same chat record. The function uses a transaction with
+// INSERT OR IGNORE followed by SELECT to avoid races when called
+// concurrently.
 func CreateOrGetChat(userA, userB int64) (bool, int64, error) {
 	// Normalize order so (a,b) and (b,a) map to same chat
 	if userA > userB {
@@ -50,6 +60,8 @@ func CreateOrGetChat(userA, userB int64) (bool, int64, error) {
 	return createdNew, chatID, nil
 }
 
+// GetChatsForUser returns chat list for a given user. The returned Chat
+// includes computed fields such as LastMessage and LastMessageTime if any.
 func GetChatsForUser(userID int64) ([]models.Chat, error) {
 	rows, err := DB.Query(`
 		SELECT 
@@ -102,8 +114,13 @@ func GetChatsForUser(userID int64) ([]models.Chat, error) {
 	return chats, nil
 }
 
+// GetMessagesForChat returns messages for a chat using cursor style
+// pagination. If both beforeID and afterID are nil the function returns
+// the most recent `limit` messages. If beforeID is provided it returns
+// older messages (IDs < beforeID), if afterID is provided it returns
+// newer messages (IDs > afterID).
 func GetMessagesForChat(chatID int64, beforeID, afterID *int64, limit int) ([]models.Message, error) {
-	// ✅ Case 1: First load — get LAST MESSAGES
+	// Case 1: First load — get LAST MESSAGES
 	if beforeID == nil && afterID == nil {
 		query := `
 			SELECT * FROM (
@@ -185,6 +202,8 @@ func GetMessagesForChat(chatID int64, beforeID, afterID *int64, limit int) ([]mo
 	return msgs, nil
 }
 
+// MarkMessagesAsReadForChat marks unread messages in a chat as read for the
+// given receiver. Returns true on success.
 func MarkMessagesAsReadForChat(chatID int64, userID int64) (bool, error) {
 	_, err := DB.Exec(`
 		UPDATE messages SET is_read = 1
@@ -196,6 +215,8 @@ func MarkMessagesAsReadForChat(chatID int64, userID int64) (bool, error) {
 	return true, nil
 }
 
+// MarkMessagesAsRead marks messages identified by ids as read. Returns true
+// on success.
 func MarkMessagesAsRead(MessageIDs []int64) (bool, error) {
 	query := "UPDATE messages SET is_read = TRUE WHERE id IN ("
 	args := make([]interface{}, len(MessageIDs))

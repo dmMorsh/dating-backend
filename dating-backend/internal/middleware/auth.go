@@ -12,6 +12,11 @@ type ctxKey string
 
 const userIDKey ctxKey = "userID"
 
+// AuthMiddleware validates Bearer token from the Authorization header.
+//
+// On success it injects the user id into the request context (use
+// `UserIDFromContext` to retrieve it) and calls the next handler. On
+// failure it writes an HTTP 401 response and does not call next.
 func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")

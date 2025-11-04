@@ -54,6 +54,10 @@ func HasLiked(userID, targetID int64) (bool, error) {
 	return cnt > 0, nil
 }
 
+// UpsertSwipe and HasLiked are thin wrappers for database operations related
+// to swipe state. Keeping them in data-access centralizes DB code and makes
+// higher-level handlers easier to test and reason about.
+
 func GetUserFollowers(userID int64) ([]models.User, error) {
 	rows, err := DB.Query(`
 		SELECT 
