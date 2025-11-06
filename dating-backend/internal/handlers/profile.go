@@ -8,11 +8,20 @@ import (
 
 	data_access "dating-backend/internal/data-access"
 	middleware "dating-backend/internal/middleware"
-	models "dating-backend/internal/models"
 	"dating-backend/internal/utils"
 )
 
 // GET /me
+// Retrieves the profile of the authenticated user.
+// Example response:
+// {
+//	 "id": 1,
+//	 "username": "johndoe",
+//	 "name": "John Doe",
+//	 "bio": "Hello!",
+//	 "photo_url": "http://example.com/photo.jpg",
+//	 ...
+// }
 func GetMyProfileHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
@@ -26,12 +35,22 @@ func GetMyProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u.Password = "" // на всякий случай
+	u.Password = "" // Hide password
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(u)
 }
 
 // GET /user/{id}
+// Retrieves the profile of a user by their ID.
+// Example response:
+// {
+//	 "id": 2,
+//	 "username": "janedoe",
+//	 "name": "Jane Doe",
+//	 "bio": "Hi there!",
+//	 "photo_url": "http://example.com/photo2.jpg",
+//	 ...
+// }
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/user/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -47,15 +66,15 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u.Age = utils.GetAge(u.Birthday)
-	u.Birthday = nil // прячем дату рождения
+	u.Birthday = nil // Hide birthday
 	u.Password = ""
-	u.Longitude = nil // прячем координаты
+	u.Longitude = nil // Hide precise location
 	u.Latitude = nil
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(u)
 }
 
-// PUT /me
+
 type UpdateProfileRequest struct {
 	Name         	*string  `json:"name,omitempty"`
 	Gender       	*string  `json:"gender,omitempty"`
@@ -68,6 +87,16 @@ type UpdateProfileRequest struct {
 	Longitude    	*float64 `json:"longitude,omitempty"`
 }
 
+// PUT /me
+// Updates the profile of the authenticated user.
+// Expects a JSON body with fields to update.
+// Example request body:
+// {
+//	 "name": "New Name",
+//	 "bio": "Updated bio",
+//	 "photo_url": "http://example.com/newphoto.jpg",
+//	 ...
+// }
 func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -92,7 +121,7 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Применяем изменения только если пришли (NULLable поля)
+	// Apply changes only if they have arrived in the request
 	if req.Name != nil {
 		u.Name = strings.TrimSpace(*req.Name)
 	}
@@ -130,33 +159,4 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 	u.Password = ""
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(u)
-}
-
-func ProfilesHandler(w http.ResponseWriter, r *http.Request) {
-	userID, err := middleware.UserIDFromContext(r.Context())
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
-	rows, err := data_access.DB.Query("SELECT id, name, bio, photo_url, birthday FROM users WHERE id != ?", userID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var profiles []models.User
-	for rows.Next() {
-		var u models.User
-		err := rows.Scan(&u.ID, &u.Name, &u.Bio, &u.PhotoURL, &u.Birthday)
-		if err != nil {
-			continue
-		}
-		u.Age = utils.GetAge(u.Birthday)
-		u.Birthday = nil // прячем дату рождения
-		profiles = append(profiles, u)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(profiles)
 }

@@ -6,7 +6,7 @@ import (
 )
 
 func migrate(db *sql.DB) error {
-	// Проверяем, есть ли колонка "birthday"
+	// Check if 'birthday' column exists in 'users' table
 	rows, err := db.Query(`PRAGMA table_info(users);`)
 	if err != nil {
 		return err

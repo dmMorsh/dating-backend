@@ -6,6 +6,7 @@ import (
 	"fmt"
 )
 
+// GetUserByID retrieves a user by their ID.
 func GetUserByID(id int64) (*models.User, error) {
 	u := &models.User{}
 	row := DB.QueryRow(`
@@ -37,6 +38,7 @@ func GetUserByID(id int64) (*models.User, error) {
 	return u, nil
 }
 
+// UpdateUser updates the user's profile information.
 func UpdateUser(u *models.User) error {
 	_, err := DB.Exec(`
 		UPDATE users SET 

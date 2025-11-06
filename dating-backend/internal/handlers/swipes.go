@@ -19,6 +19,15 @@ type SwipeRequest struct {
 	Action   string `json:"action"` // "like" или "dislike"
 }
 
+// SwipeHandler processes a swipe action (like or dislike) from the authenticated user.
+// It updates the swipe record in the database and checks for mutual likes to create a match.
+// On a mutual like, it creates a chat and sends real-time notifications to both users.
+// If no match occurs, it simply acknowledges the swipe action.
+// Expected JSON request body:
+// {
+//     "target_id": <int64>,
+//     "action": "like" | "dislike"
+// }
 func SwipeHandler(w http.ResponseWriter, r *http.Request) {
 	userID, authErr := middleware.UserIDFromContext(r.Context())
 	if authErr != nil {
@@ -42,13 +51,13 @@ func SwipeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Вставляем или обновляем свайп
+	// Put or update the swipe record
 	if err := data_access.UpsertSwipe(userID, req.TargetID, req.Action); err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
 	}
 
-	// Проверяем взаимный лайк
+	// Check for mutual likes
 	if req.Action == "like" {
 		mutual, err := data_access.HasLiked(req.TargetID, userID)
 
@@ -63,7 +72,7 @@ func SwipeHandler(w http.ResponseWriter, r *http.Request) {
 					_,_ = data_access.SaveMessage(&msgMatch)
 
 				if err == nil {
-					// Отправляем уведомления обоим участникам через WebSocket
+					// Send real-time notifications to both users
 					msg := map[string]any{
 						"type":    "match",
 						"content": "It's a match! 🎉",
@@ -87,6 +96,8 @@ func SwipeHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": req.Action})
 }
 
+// MyFollowersHandler retrieves the list of users who have liked the authenticated user.
+// It responds with a JSON array of user profiles.
 func MyFollowersHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
@@ -104,6 +115,11 @@ func MyFollowersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(profiles)
 }
 
+// GetSwipeCandidatesHandler retrieves a list of user profiles that the authenticated user
+// has not swiped on yet, applying optional filters from SimpleFilter.
+// It responds with a JSON array of user profiles.
+// Expected query parameters can include those defined in SimpleFilter.
+// For example: ?min_age=18&max_age=30&gender=female
 func GetSwipeCandidatesHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
@@ -127,6 +143,7 @@ func GetSwipeCandidatesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(profiles)
 }
 
+// Only for testing purposes
 func ClearMySwipesHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {

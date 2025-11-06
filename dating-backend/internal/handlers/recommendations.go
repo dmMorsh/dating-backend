@@ -16,7 +16,7 @@ func RecommendationsHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Опциональные параметры: limit и maxDistance
+    // Optional params: limit and maxDistance
     q := r.URL.Query()
     limit := 20
     if s := q.Get("limit"); s != "" {
@@ -24,7 +24,7 @@ func RecommendationsHandler(w http.ResponseWriter, r *http.Request) {
             limit = v
         }
     }
-    maxDist := 50.0 // км по умолчанию
+    maxDist := 50.0 // km on default
     if s := q.Get("max_distance"); s != "" {
         if v, err2 := strconv.ParseFloat(s, 64); err2 == nil && v > 0 {
             maxDist = v

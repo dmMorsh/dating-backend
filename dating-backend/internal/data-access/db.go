@@ -99,7 +99,7 @@ func InitDB() {
 		log.Fatal(err)
 	}
 
-	// Применяем миграции
+	// Run migrations
 	if err := migrate(DB); err != nil {
         log.Fatal("Migration failed:", err)
     }
