@@ -40,8 +40,6 @@ func init() {
 
 // StartWebSocketSession generates a one-time session token for WebSocket connection.
 // The token is mapped to the authenticated userID and stored in memory.
-// The token should be included as a query parameter when establishing the WebSocket connection.
-// Example usage: /ws/chat?session=<token>
 func StartWebSocketSession(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {

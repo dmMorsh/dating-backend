@@ -96,9 +96,9 @@ func SwipeHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": req.Action})
 }
 
-// MyFollowersHandler retrieves the list of users who have liked the authenticated user.
+// GetMyFollowersHandler retrieves the list of users who have liked the authenticated user.
 // It responds with a JSON array of user profiles.
-func MyFollowersHandler(w http.ResponseWriter, r *http.Request) {
+func GetMyFollowersHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)

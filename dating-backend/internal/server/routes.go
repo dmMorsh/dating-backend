@@ -39,22 +39,22 @@ func NewRouter() http.Handler {
     r.Group(func(r chi.Router) {
         r.Use(middleware.ChiAuthMiddleware)
 
-		r.Get("/clear/my/swipes", 	http.HandlerFunc(handlers.ClearMySwipesHandler))
+		r.Delete("/clear/my/swipes",http.HandlerFunc(handlers.ClearMySwipesHandler))
 		r.Post("/logout", 			http.HandlerFunc(handlers.LogoutHandler))
 		
 		r.Get("/me", 				http.HandlerFunc(handlers.GetMyProfileHandler))
 		r.Put("/me", 				http.HandlerFunc(handlers.UpdateProfileHandler))
 		r.Get("/user/{id}", 		http.HandlerFunc(handlers.GetUserHandler))
-		r.Get("/followers", 		http.HandlerFunc(handlers.MyFollowersHandler))
+		r.Get("/followers", 		http.HandlerFunc(handlers.GetMyFollowersHandler))
 		
 		r.Post("/swipe", 			http.HandlerFunc(handlers.SwipeHandler))
 		r.Get("/profiles/search", 	http.HandlerFunc(handlers.GetSwipeCandidatesHandler))
 
-		r.Get("/ws/start", 			http.HandlerFunc(handlers.StartWebSocketSession))
+		r.Post("/ws/start", 		http.HandlerFunc(handlers.StartWebSocketSession))
 		r.Post("/messages/send", 	http.HandlerFunc(handlers.SendMessageHandler))
 		r.Post("/messages/read", 	http.HandlerFunc(handlers.MarkMessagesReadHandler))
 		r.Get("/chats", 			http.HandlerFunc(handlers.GetChatsHandler))
-		r.Get("/chat/read/{chatId}", 	http.HandlerFunc(handlers.MarkChatMessagesAsReadHandler))
+		r.Post("/chat/read/{chatId}", 	http.HandlerFunc(handlers.MarkChatMessagesAsReadHandler))
 		r.Get("/chat/messages/{chatId}", 	http.HandlerFunc(handlers.GetChatMessagesHandler))
     })
 

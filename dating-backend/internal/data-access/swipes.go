@@ -94,9 +94,9 @@ func GetSwipeCandidates(userID int64, f *models.SimpleFilter) ([]models.User, er
 		query += " AND u.photo_url != ''"
 	}
 
-	if f.InterestedIn != "" {
+	if f.InterestedIn != nil && *f.InterestedIn != "" {
 		query += " AND u.interested_in LIKE ?"
-		args = append(args, "%"+f.InterestedIn+"%")
+		args = append(args, "%"+*f.InterestedIn+"%")
 	}
 
 	if f.LastSeenID != nil {

@@ -140,7 +140,7 @@ func GetChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
 // MarkChatMessagesAsReadHandler marks all messages in a chat as read for the
 // authenticated user.
 // The chat ID is taken from the URL path.
-// Example: GET /chat/read/{chatId}
+// Example: POST /chat/read/{chatId}
 func MarkChatMessagesAsReadHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
