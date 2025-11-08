@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"time"
 
 	handlers "dating-backend/internal/handlers"
 	middleware "dating-backend/internal/middleware"
@@ -25,7 +26,7 @@ func NewRouter() http.Handler {
     // Public routes
     r.Group(func(r chi.Router) {
         r.Get("/ping", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            w.Write([]byte("pong"))
+            w.Write([]byte(time.Now().Format("2006-01-02 15:04:05") + " -=- pong"))
         }))
 		
         r.Post("/register", http.HandlerFunc(handlers.RegisterHandler))

@@ -26,7 +26,8 @@ func GetUserByID(id int64) (*models.User, error) {
 		IFNULL(last_active, '')
 	FROM users WHERE id = ?`, id)
 
-	err := row.Scan(&u.ID, &u.Username, &u.Name, &u.Gender, &u.Birthday,
+	var b models.SQLiteDate
+	err := row.Scan(&u.ID, &u.Username, &u.Name, &u.Gender, &b,
 		&u.InterestedIn, &u.Bio, &u.PhotoURL, &u.Location, &u.Latitude, 
 		&u.Longitude, &u.CreatedAt, &u.LastActive)
 	if err == sql.ErrNoRows {
@@ -35,6 +36,11 @@ func GetUserByID(id int64) (*models.User, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if !b.Time.IsZero() {
+		u.Birthday = &b
+	}
+
 	return u, nil
 }
 
@@ -56,5 +62,14 @@ func UpdateUser(u *models.User) error {
 		u.Name, u.Gender, u.Birthday, u.InterestedIn, u.Bio, u.PhotoURL, 
 		u.Location, u.Latitude, u.Longitude, u.ID,
 	)
+	return err
+}
+
+func UpdateUserLocationIndex(userID int64, lat, lon float64) error {
+	_, err := DB.Exec(`
+	    INSERT OR REPLACE INTO user_locations 
+	    (id, min_lat, max_lat, min_lon, max_lon)
+	    VALUES (?, ?, ?, ?, ?)`,
+		userID, lat, lat, lon, lon)
 	return err
 }

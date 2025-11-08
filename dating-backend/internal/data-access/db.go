@@ -78,6 +78,15 @@ func InitDB() {
 		FOREIGN KEY (receiver_id) REFERENCES users(id)
 	);`
 
+	createUserLocations := `
+	CREATE VIRTUAL TABLE IF NOT EXISTS user_locations USING rtree(
+		id,
+		min_lat,
+		max_lat,
+		min_lon,
+		max_lon
+	);`
+
 	_, err = DB.Exec(createUsers)
 	if err != nil {
 		log.Fatal(err)
@@ -95,6 +104,10 @@ func InitDB() {
 		log.Fatal(err)
 	}
 	_, err = DB.Exec(createMessages)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = DB.Exec(createUserLocations)
 	if err != nil {
 		log.Fatal(err)
 	}

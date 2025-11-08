@@ -8,6 +8,7 @@ import (
 
 	data_access "dating-backend/internal/data-access"
 	middleware "dating-backend/internal/middleware"
+	"dating-backend/internal/models"
 	"dating-backend/internal/utils"
 )
 
@@ -65,7 +66,7 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u.Age = utils.GetAge(u.Birthday)
+	u.Age = utils.GetAge(&u.Birthday.Time)
 	u.Birthday = nil // Hide birthday
 	u.Password = ""
 	u.Longitude = nil // Hide precise location
@@ -78,7 +79,7 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 type UpdateProfileRequest struct {
 	Name         	*string  `json:"name,omitempty"`
 	Gender       	*string  `json:"gender,omitempty"`
-	Birthday		*utils.JSONDate	`json:"birthday,omitempty"`
+	Birthday		*models.SQLiteDate	`json:"birthday,omitempty"`
 	InterestedIn 	*string  `json:"interested_in,omitempty"`
 	Bio          	*string  `json:"bio,omitempty"`
 	PhotoURL     	*string  `json:"photo_url,omitempty"`
@@ -129,8 +130,7 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 		u.Gender = *req.Gender
 	}
 	if req.Birthday != nil {
-		t := req.Birthday.Time()
-		u.Birthday = &t
+		u.Birthday = req.Birthday
 	}
 	if req.InterestedIn != nil {
 		u.InterestedIn = *req.InterestedIn
@@ -144,16 +144,27 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 	if req.Location != nil {
 		u.Location = req.Location
 	}
+	var doUpdateUserLocationIndex bool = false
 	if req.Latitude != nil && *req.Latitude != 0.0 {
+		if u.Latitude != req.Latitude {
+			doUpdateUserLocationIndex = true
+		}
 		u.Latitude = req.Latitude
 	}
 	if req.Longitude != nil && *req.Longitude != 0.0 {
+		if u.Longitude != req.Longitude {
+			doUpdateUserLocationIndex = true
+		}
 		u.Longitude = req.Longitude
 	}
 
 	if err := data_access.UpdateUser(u); err != nil {
 		http.Error(w, "failed to update", http.StatusInternalServerError)
 		return
+	}
+	
+	if doUpdateUserLocationIndex {
+		_ = data_access.UpdateUserLocationIndex(u.ID, *u.Latitude, *u.Longitude)
 	}
 
 	u.Password = ""

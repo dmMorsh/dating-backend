@@ -28,7 +28,7 @@ func migrate(db *sql.DB) error {
 
 	if !hasBirthday {
 		fmt.Println("Migrating: adding 'birthday' column...")
-		_, err = db.Exec(`ALTER TABLE users ADD COLUMN birthday DATETIME;`)
+		_, err = db.Exec(`ALTER TABLE users ADD COLUMN birthday TEXT;`)
 		if err != nil {
 			return fmt.Errorf("failed to add birthday column: %w", err)
 		}
