@@ -3,6 +3,7 @@ package data_access
 import (
 	"dating-backend/internal/models"
 	"dating-backend/internal/utils"
+	"log"
 	"math"
 )
 
@@ -12,6 +13,9 @@ func UpsertSwipe(userID, targetID int64, action string) error {
 		INSERT OR REPLACE INTO swipes (user_id, target_id, action)
 		VALUES (?, ?, ?)
 	`, userID, targetID, action)
+	if err != nil {
+		log.Printf("data-access: UpsertSwipe error user=%d target=%d action=%s: %v", userID, targetID, action, err)
+	}
 	return err
 }
 
@@ -23,6 +27,7 @@ func HasLiked(userID, targetID int64) (bool, error) {
 		WHERE user_id = ? AND target_id = ? AND action = 'like'
 	`, userID, targetID).Scan(&cnt)
 	if err != nil {
+		log.Printf("data-access: HasLiked error user=%d target=%d: %v", userID, targetID, err)
 		return false, err
 	}
 	return cnt > 0, nil
@@ -48,6 +53,7 @@ func GetUserFollowers(userID int64) ([]models.User, error) {
 		`, userID, userID)	
 		
 	if err != nil {
+		log.Printf("data-access: GetUserFollowers query error user=%d: %v", userID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -55,6 +61,7 @@ func GetUserFollowers(userID int64) ([]models.User, error) {
 	for rows.Next() {
 		var follower models.User
 		if err := rows.Scan(&follower.ID, &follower.Name, &follower.Birthday, &follower.PhotoURL, &follower.Bio,); err != nil {
+			log.Printf("data-access: GetUserFollowers scan error user=%d: %v", userID, err)
 
 			return nil, err
 		}
@@ -136,6 +143,7 @@ func GetSwipeCandidates(userID int64, f *models.SimpleFilter) ([]models.User, er
 
 	rows, err := DB.Query(query, args...)
 	if err != nil {
+		log.Printf("data-access: GetSwipeCandidates query error user=%d: %v", userID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -148,6 +156,7 @@ func GetSwipeCandidates(userID int64, f *models.SimpleFilter) ([]models.User, er
 			&u.InterestedIn, &u.Bio, &u.PhotoURL, &u.Location,
 			&u.Latitude, &u.Longitude, &u.CreatedAt, &u.LastActive,
 		); err != nil {
+			log.Printf("data-access: GetSwipeCandidates scan error user=%d: %v", userID, err)
 			return nil, err
 		}
 
@@ -193,6 +202,7 @@ func ClearSwipesForUser(userID int64) (error) {
 	_, err := DB.Exec(`DELETE FROM swipes WHERE user_id = ?`,
 	userID)
 	if err != nil {
+		log.Printf("data-access: ClearSwipesForUser error user=%d: %v", userID, err)
 		return err
 	}
 	return nil

@@ -6,6 +6,7 @@ import (
 	utils "dating-backend/internal/utils"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -32,17 +33,20 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	var newUser models.User
 	err := json.NewDecoder(r.Body).Decode(&newUser)
 	if err != nil {
+		log.Printf("register: decode error: %v", err)
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
 	// Check required fields
 	if strings.TrimSpace(newUser.Username) == "" {
+		log.Printf("register: missing username from request %s", r.RemoteAddr)
 		http.Error(w, "Username is required", http.StatusBadRequest)
 		return
 	}
 
 	if strings.TrimSpace(newUser.Password) == "" {
+		log.Printf("register: missing password from request %s", r.RemoteAddr)
 		http.Error(w, "Password is required", http.StatusBadRequest)
 		return
 	}
@@ -50,6 +54,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// Hash password
 	HashPassword, err := utils.HashPassword(newUser.Password)
 	if err != nil {
+		log.Printf("register: hashing error: %v", err)
 		http.Error(w, "Hashing password error", http.StatusInternalServerError)
 		return
 	}
@@ -58,11 +63,13 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// Insert into DB new user
 	stmt, err := data_access.DB.Prepare("INSERT INTO users(username, password, bio, photo_url) VALUES(?,?,?,?)")
 	if err != nil {
+		log.Printf("register: db prepare error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	_, err = stmt.Exec(newUser.Username, newUser.Password, newUser.Bio, newUser.PhotoURL)
 	if err != nil {
+		log.Printf("register: db exec error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -101,6 +108,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		DeviceID  string `json:"device_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
+		log.Printf("login: decode error: %v", err)
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
@@ -110,11 +118,13 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var storedPassword string
 	err := row.Scan(&id, &storedPassword)
 	if err != nil {
+		log.Printf("Invalid username %s: %v", credentials.Username, err)
 		http.Error(w, "Invalid username", http.StatusUnauthorized)
 		return
 	}
 
 	if !utils.CheckPasswordHash(credentials.Password, storedPassword) {
+		log.Printf("Invalid password for user %s", credentials.Username)
 		http.Error(w, "Invalid password", http.StatusUnauthorized)
 		return
 	}
@@ -130,6 +140,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	                  VALUES (?, ?, ?, ?, ?, ?)`,
 		id, credentials.DeviceID, accessToken, refreshToken, accessExp, refreshExp)
 	if err != nil {
+		log.Printf("login: db exec error user=%d: %v", id, err)
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}
@@ -157,6 +168,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("Authorization")
 	if token == "" {
+		log.Printf("logout: missing authorization header from %s", r.RemoteAddr)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -166,18 +178,21 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		DeviceID	string `json:"device_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&logOutCred); err != nil {
+		log.Printf("logout: decode error: %v", err)
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
 	res, err := data_access.DB.Exec(`DELETE FROM sessions WHERE user_id=? AND device_id=? AND access_token=?`,
-								logOutCred.DeviceID, logOutCred.DeviceID, token)
+								logOutCred.UserID, logOutCred.DeviceID, token)
 	if err != nil {
+		log.Printf("logout: db exec error: %v", err)
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}
 	rowsAffected, _ := res.RowsAffected()
 	if rowsAffected == 0 {
+		log.Printf("logout: no active session found for token=%s", token)
 		http.Error(w, "No active session found", http.StatusUnauthorized)
 		return
 	}
@@ -207,6 +222,7 @@ func RefreshHandler(w http.ResponseWriter, r *http.Request) {
 		RefreshToken 	string `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("refresh: decode error: %v", err)
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
@@ -216,6 +232,7 @@ func RefreshHandler(w http.ResponseWriter, r *http.Request) {
 	err := data_access.DB.QueryRow(`SELECT refresh_expires FROM sessions WHERE user_id = ? AND refresh_token = ?`,
 		req.UserID, req.RefreshToken).Scan(&refreshExp)
 	if err != nil || time.Now().After(refreshExp) {
+		log.Printf("refresh: invalid or expired token for user=%d: %v", req.UserID, err)
 		http.Error(w, "Invalid or expired refresh token", http.StatusUnauthorized)
 		return
 	}
@@ -227,6 +244,7 @@ func RefreshHandler(w http.ResponseWriter, r *http.Request) {
 	_, err = data_access.DB.Exec(`UPDATE sessions SET access_token=?, access_expires=?, refresh_expires=? WHERE user_id = ? AND refresh_token=?`,
 		newAccess, newExp, newRefreshExp, req.UserID, req.RefreshToken)
 	if err != nil {
+		log.Printf("refresh: db exec error user=%d: %v", req.UserID, err)
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}

@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	data_access "dating-backend/internal/data-access"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -21,12 +22,14 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			log.Printf("auth: missing or invalid authorization header from %s", r.RemoteAddr)
 			http.Error(w, "missing or invalid authorization header", http.StatusUnauthorized)
 			return
 		}
 
 		token := strings.TrimPrefix(authHeader, "Bearer ")
 		if token == "" {
+			log.Printf("auth: empty bearer token from %s", r.RemoteAddr)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -35,6 +38,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		var exp time.Time
 		err := data_access.DB.QueryRow(`SELECT user_id, access_expires FROM sessions WHERE access_token=?`, token).Scan(&userID, &exp)
 		if err != nil || time.Now().After(exp) {
+			log.Printf("auth: token invalid/expired: %v", err)
 			http.Error(w, "Token expired or invalid", http.StatusUnauthorized)
 			return
 		}

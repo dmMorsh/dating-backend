@@ -1,13 +1,15 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+
 	data_access "dating-backend/internal/data-access"
 	middleware "dating-backend/internal/middleware"
 	"dating-backend/internal/models"
 	"dating-backend/internal/realtime"
-	"encoding/json"
-	"fmt"
-	"net/http"
 
 	"github.com/gorilla/schema"
 )
@@ -37,22 +39,26 @@ func SwipeHandler(w http.ResponseWriter, r *http.Request) {
 
 	var req SwipeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("swipe: decode error: %v", err)
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if req.TargetID == userID {
+		log.Printf("swipe: user %d tried to swipe on themselves", userID)
 		http.Error(w, "target_id can't be yours", http.StatusBadRequest)
 		return
 	}
 
 	if req.Action != "like" && req.Action != "dislike" {
+		log.Printf("swipe: invalid action '%s' from user %d", req.Action, userID)
 		http.Error(w, "invalid action", http.StatusBadRequest)
 		return
 	}
 
 	// Put or update the swipe record
 	if err := data_access.UpsertSwipe(userID, req.TargetID, req.Action); err != nil {
+		log.Printf("swipe: upsert error user=%d target=%d action=%s: %v", userID, req.TargetID, req.Action, err)
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
 	}
@@ -101,12 +107,14 @@ func SwipeHandler(w http.ResponseWriter, r *http.Request) {
 func GetMyFollowersHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("get followers: unauthorized: %v", err)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	profiles, err := data_access.GetUserFollowers(userID)
 	if err != nil {
+		log.Printf("get followers: db error user=%d: %v", userID, err)
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}
@@ -123,18 +131,21 @@ func GetMyFollowersHandler(w http.ResponseWriter, r *http.Request) {
 func GetSwipeCandidatesHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("get swipe candidates: unauthorized: %v", err)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	filter := models.SimpleFilter{}
-    if err := decoder.Decode(&filter, r.URL.Query()); err != nil {
-        http.Error(w, "invalid query", http.StatusBadRequest)
-        return
-    }
+	if err := decoder.Decode(&filter, r.URL.Query()); err != nil {
+		log.Printf("get swipe candidates: decode filter error: %v", err)
+		http.Error(w, "invalid query", http.StatusBadRequest)
+		return
+	}
 
 	profiles, err := data_access.GetSwipeCandidates(userID, &filter)
 	if err != nil {
+		log.Printf("get swipe candidates: db error user=%d: %v", userID, err)
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
 	}
@@ -147,12 +158,14 @@ func GetSwipeCandidatesHandler(w http.ResponseWriter, r *http.Request) {
 func ClearMySwipesHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("clear swipes: unauthorized: %v", err)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	
 	err = data_access.ClearSwipesForUser(userID)
 	if err != nil {
+		log.Printf("clear swipes: db error user=%d: %v", userID, err)
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
 	}

@@ -1,15 +1,16 @@
 package handlers
 
 import (
+	"encoding/hex"
+	"encoding/json"
+	"log"
 	"net/http"
+	"time"
 
 	crypto "crypto/rand"
 	data_access "dating-backend/internal/data-access"
 	models "dating-backend/internal/models"
 	"dating-backend/internal/realtime"
-	"encoding/hex"
-	"encoding/json"
-	"time"
 
 	"dating-backend/internal/middleware"
 
@@ -41,8 +42,13 @@ func init() {
 // StartWebSocketSession generates a one-time session token for WebSocket connection.
 // The token is mapped to the authenticated userID and stored in memory.
 func StartWebSocketSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("ws/start: unauthorized: %v", err)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -93,12 +99,14 @@ func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	session := r.URL.Query().Get("session")
 	userID, ok := sessionTokens[session]
 	if !ok || userID < 0 {
+		log.Printf("ws: invalid session token: %s", session)
 		http.Error(w, "invalid session token", http.StatusUnauthorized)
 		return
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
+		log.Printf("ws: upgrade error: %v", err)
 		http.Error(w, "failed to upgrade", http.StatusInternalServerError)
 		return
 	}
@@ -119,12 +127,14 @@ func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 			Content		string	`json:"content"`
 		}
 		if err := conn.ReadJSON(&msg); err != nil {
+			log.Printf("ws: read json error user=%d: %v", userID, err)
 			break // connection closed or error
 		}
 
 		// save message to DB
 		msgId, saveErr := SaveMessage(msg.ChatID, userID, msg.ReceiverID, msg.Content)
 		if saveErr != nil {
+			log.Printf("ws: save message error chat=%d sender=%d receiver=%d: %v", msg.ChatID, userID, msg.ReceiverID, saveErr)
 			conn.WriteJSON(map[string]string{"error": "failed to save message"})
 			continue
 		}

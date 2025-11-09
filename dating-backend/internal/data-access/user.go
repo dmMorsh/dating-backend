@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"dating-backend/internal/models"
 	"fmt"
+	"log"
 )
 
 // GetUserByID retrieves a user by their ID.
@@ -31,9 +32,11 @@ func GetUserByID(id int64) (*models.User, error) {
 		&u.InterestedIn, &u.Bio, &u.PhotoURL, &u.Location, &u.Latitude, 
 		&u.Longitude, &u.CreatedAt, &u.LastActive)
 	if err == sql.ErrNoRows {
+		log.Printf("data-access: GetUserByID not found id=%d", id)
 		return nil, fmt.Errorf("not found")
 	}
 	if err != nil {
+		log.Printf("data-access: GetUserByID scan error id=%d: %v", id, err)
 		return nil, err
 	}
 
@@ -62,6 +65,9 @@ func UpdateUser(u *models.User) error {
 		u.Name, u.Gender, u.Birthday, u.InterestedIn, u.Bio, u.PhotoURL, 
 		u.Location, u.Latitude, u.Longitude, u.ID,
 	)
+	if err != nil {
+		log.Printf("data-access: UpdateUser error id=%d: %v", u.ID, err)
+	}
 	return err
 }
 
@@ -71,5 +77,8 @@ func UpdateUserLocationIndex(userID int64, lat, lon float64) error {
 	    (id, min_lat, max_lat, min_lon, max_lon)
 	    VALUES (?, ?, ?, ?, ?)`,
 		userID, lat, lat, lon, lon)
+	if err != nil {
+		log.Printf("data-access: UpdateUserLocationIndex error id=%d: %v", userID, err)
+	}
 	return err
 }
