@@ -158,6 +158,10 @@ func GetSwipeCandidates(userID int64, f *models.SimpleFilter) ([]models.User, er
 			}
 			// DistanceKm is a *int in models.User; store rounded kilometers as pointer
 			d := int(math.Round(dist))
+			// ensure at least 1 km, to avoid zero distance display
+			if d < 1 {
+				d = 1
+			}
 			u.DistanceKm = &d
 		}
 		u.Latitude = nil 
