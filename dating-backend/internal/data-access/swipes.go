@@ -151,16 +151,19 @@ func GetSwipeCandidates(userID int64, f *models.SimpleFilter) ([]models.User, er
 			return nil, err
 		}
 
-		u.Age = utils.GetAge(&u.Birthday.Time)
-
 		if useGeo && u.Latitude != nil && u.Longitude != nil {
 			dist := haversine(lat1, lon1, *u.Latitude, *u.Longitude)
 			if dist > *f.MaxDistanceKm {
 				continue // skip users outside the radius
 			}
+			// DistanceKm is a *int in models.User; store rounded kilometers as pointer
+			d := int(math.Round(dist))
+			u.DistanceKm = &d
 		}
 		u.Latitude = nil 
 		u.Longitude= nil
+		
+		u.Age = utils.GetAge(&u.Birthday.Time)
 
 		candidates = append(candidates, u)
 	}
