@@ -22,7 +22,7 @@ jobs:
           go mod tidy
           go build -o ../myapp ./cmd
 
-      - name: Copy binary to server
+      - name: Copy binary to temp folder
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -30,7 +30,17 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: "./myapp"
-          target: "/opt/myapp/myapp"
+          target: "/home/dream/myapp_temp"
+
+      - name: Move binary and restart
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          port: ${{ secrets.SERVER_PORT }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            sudo mv /home/dream/myapp_temp/myapp /opt/myapp/myapp
 
       - name: Restart service
         uses: appleboy/ssh-action@v0.1.10
