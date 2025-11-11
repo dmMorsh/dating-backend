@@ -36,4 +36,7 @@ var (
     // ChiAuthMiddleware performs authorization checks and injects user id into
     // the request context using the existing AuthMiddleware implementation.
     ChiAuthMiddleware = Adapter(AuthMiddleware)
+    // ChiRequestIDMiddleware injects a request id into each incoming request
+    // and sets X-Request-ID header on the response.
+    ChiRequestIDMiddleware = Adapter(RequestIDMiddleware)
 )

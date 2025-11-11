@@ -3,67 +3,43 @@ package handlers
 import (
 	"encoding/hex"
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
 	crypto "crypto/rand"
-	data_access "dating-backend/internal/data-access"
-	models "dating-backend/internal/models"
 	"dating-backend/internal/realtime"
 
+	"dating-backend/internal/logging"
 	"dating-backend/internal/middleware"
 
 	"github.com/gorilla/websocket"
 )
 
-//ЧАТ НЕ РАБОТАЕТ В РЕЖИМЕ РАСШИРЕННЫХ ЛОГОВ
-//
-//
-//
-
-var sessionTokens = make(map[string]int64)
-
-// TODO: Use Redis or another in-memory store for session tokens with expiration.
-func init() {
-	// Clean up expired tokens every 2 minutes
-	go func() {
-		for {
-			time.Sleep(2 * time.Minute)
-			for t, uid := range sessionTokens {
-				if uid < 0 { // Store negative IDs for expired tokens.
-					delete(sessionTokens, t)
-				}
-			}
-		}
-	}()
-}
+// Session tokens are handled via the SessionStore abstraction in
+// `internal/realtime/session_store.go`. By default it uses an in-memory
+// store but can be replaced with a Redis-backed store by assigning
+// `realtime.DefaultSessionStore = realtime.NewRedisSessionStore(...)` from
+// `main` before the server starts.
 
 // StartWebSocketSession generates a one-time session token for WebSocket connection.
-// The token is mapped to the authenticated userID and stored in memory.
+// The token is mapped to the authenticated userID and stored.
 func StartWebSocketSession(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
-		log.Printf("ws/start: unauthorized: %v", err)
+		logging.Log.Warnf("ws/start: unauthorized: %v", err)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	token := generateSessionToken()
-	// TODO: store in Redis with expiration
-	sessionTokens[token] = userID
-
-	// Expire the token after 30 seconds
-	go func(tok string) {
-		time.Sleep(30 * time.Second)
-		if _, ok := sessionTokens[tok]; ok {
-			sessionTokens[tok] = -1 // Mark as expired
-		}
-	}(token)
+	// store token with TTL; the default store uses in-memory map with cleaner,
+	// but this can be swapped to Redis by assigning realtime.DefaultSessionStore
+	// before the server starts.
+	if err := realtime.DefaultSessionStore.Set(token, userID, 30*time.Second); err != nil {
+		logging.Log.Errorf("ws/start: failed to store session token: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 
 	json.NewEncoder(w).Encode(map[string]string{
 		"session_token": token,
@@ -78,7 +54,6 @@ func generateSessionToken() string {
 	return hex.EncodeToString(b)
 }
 
-
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		// Allow lack of origin or specific origin
@@ -88,31 +63,38 @@ var upgrader = websocket.Upgrader{
 }
 
 // GenerateChatSessionToken creates a one-time session token for WebSocket chat connection.
-// The token is mapped to the userID and stored in memory.
+// The token is mapped to the userID and stored.
 // This token should be included as a query parameter when establishing the WebSocket connection.
 // Example usage: /ws/chat?session=<token>
 // Note: This function should be called after user authentication.
-// Example: token, err := GenerateChatSessionToken(userID)
-// The token should be sent to the client to use in the WebSocket connection.
 // The token is valid for one-time use only.
 func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	session := r.URL.Query().Get("session")
-	userID, ok := sessionTokens[session]
-	if !ok || userID < 0 {
-		log.Printf("ws: invalid session token: %s", session)
+	userID, ok, err := realtime.DefaultSessionStore.Get(session)
+	if err != nil {
+		logging.Log.Errorf("ws: session lookup error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		logging.Log.Warnf("ws: invalid session token: %s", session)
 		http.Error(w, "invalid session token", http.StatusUnauthorized)
 		return
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("ws: upgrade error: %v", err)
+		logging.Log.Errorf("ws: upgrade error: %v", err)
 		http.Error(w, "failed to upgrade", http.StatusInternalServerError)
 		return
 	}
 
 	realtime.ChatHub.Add(userID, conn)
-	delete(sessionTokens, session) // onetime use
+	
+	// one-time use - remove token from the store
+	if err := realtime.DefaultSessionStore.Delete(session); err != nil {
+		logging.Log.Errorf("ws: failed to delete session token: %v", err)
+	}
 
 	defer func() {
 		realtime.ChatHub.Remove(userID)
@@ -121,41 +103,38 @@ func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		var msg struct {
-			ChatID		int64	`json:"chat_id"`
-			SenderID	int64	`json:"sender_id"`
-			ReceiverID	int64	`json:"receiver_id"`
-			Content		string	`json:"content"`
-		}
+            Type       string  `json:"type"`
+            ChatID     int64   `json:"chat_id,omitempty"`
+            ReceiverID int64   `json:"receiver_id,omitempty"`
+            Content    string  `json:"content,omitempty"`
+            MessageID  int64   `json:"message_id,omitempty"`
+        }
+
 		if err := conn.ReadJSON(&msg); err != nil {
-			log.Printf("ws: read json error user=%d: %v", userID, err)
-			break // connection closed or error
+			if websocket.IsCloseError(err, websocket.CloseAbnormalClosure) {
+				logging.Log.Warnf("user=%d disconnected unexpectedly: %v", userID, err)
+				break
+			}
+			logging.Log.Errorf("ws: read json error user=%d: %v", userID, err)
+				break
 		}
 
-		// save message to DB
-		msgId, saveErr := SaveMessage(msg.ChatID, userID, msg.ReceiverID, msg.Content)
-		if saveErr != nil {
-			log.Printf("ws: save message error chat=%d sender=%d receiver=%d: %v", msg.ChatID, userID, msg.ReceiverID, saveErr)
-			conn.WriteJSON(map[string]string{"error": "failed to save message"})
-			continue
-		}
+		switch msg.Type {
 
-		// send to receiver if online
-		realtime.ChatHub.SendToUser(msg.ReceiverID, map[string]interface{}{
-			"id":		msgId,
-			"type":		"message",
-			"content":	msg.Content,
-			"chat_id":	msg.ChatID,
-			"user_id":	userID,
-		})
-	}
-}
-
-func SaveMessage(chatID, senderID, receiverID int64, content string) (int64, error) {
-	msg := models.Message{
-		ChatID:     chatID,
-		SenderID:   senderID,
-		ReceiverID: receiverID,
-		Content:    content,
-	}
-	return data_access.SaveMessage(&msg)
+        case "typing":
+            realtime.ChatHub.SendToUser(msg.ReceiverID, map[string]interface{}{
+                "type":		"typing",
+                "chat_id":	msg.ChatID,
+                "user_id":	userID,
+            })
+			
+        case "read":
+            realtime.ChatHub.SendToUser(msg.ReceiverID, map[string]interface{}{
+				"type":			"read",
+				"chat_id":		msg.ChatID,
+                "user_id":		userID,
+                "message_id":	msg.MessageID,
+            })
+        }
+    }
 }

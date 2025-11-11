@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
 	data_access "dating-backend/internal/data-access"
+	"dating-backend/internal/logging"
 	middleware "dating-backend/internal/middleware"
 	"dating-backend/internal/models"
 	"dating-backend/internal/utils"
@@ -27,14 +27,14 @@ import (
 func GetMyProfileHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
-		log.Printf("get my profile: unauthorized: %v", err)
+		logging.Log.Warnf("get my profile: unauthorized: %v", err)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	u, err := data_access.GetUserByID(userID)
 	if err != nil {
-		log.Printf("get my profile: user not found id=%d: %v", userID, err)
+		logging.Log.Warnf("get my profile: user not found id=%d: %v", userID, err)
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}
@@ -59,14 +59,14 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/user/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		log.Printf("get user: invalid id '%s': %v", idStr, err)
+		logging.Log.Warnf("get user: invalid id '%s': %v", idStr, err)
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
 
 	u, err := data_access.GetUserByID(id)
 	if err != nil {
-		log.Printf("get user: user not found id=%d: %v", id, err)
+		logging.Log.Warnf("get user: user not found id=%d: %v", id, err)
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}
@@ -105,28 +105,28 @@ type UpdateProfileRequest struct {
 // }
 func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
-		log.Printf("update profile: method not allowed %s from %s", r.Method, r.RemoteAddr)
+		logging.Log.Warnf("update profile: method not allowed %s from %s", r.Method, r.RemoteAddr)
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
-		log.Printf("update profile: unauthorized: %v", err)
+		logging.Log.Warnf("update profile: unauthorized: %v", err)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	var req UpdateProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("update profile: decode error user=%d: %v", userID, err)
+		logging.Log.Warnf("update profile: decode error user=%d: %v", userID, err)
 		http.Error(w, "invalid body", http.StatusBadRequest)
 		return
 	}
 
 	u, err := data_access.GetUserByID(userID)
 	if err != nil {
-		log.Printf("update profile: user not found id=%d: %v", userID, err)
+		logging.Log.Warnf("update profile: user not found id=%d: %v", userID, err)
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}
@@ -168,7 +168,7 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := data_access.UpdateUser(u); err != nil {
-		log.Printf("update profile: db error user=%d: %v", u.ID, err)
+		logging.Log.Errorf("update profile: db error user=%d: %v", u.ID, err)
 		http.Error(w, "failed to update", http.StatusInternalServerError)
 		return
 	}

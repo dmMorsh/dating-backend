@@ -29,7 +29,11 @@ func (h *Hub) Add(userID int64, conn *websocket.Conn) {
 func (h *Hub) Remove(userID int64) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	delete(h.clients, userID)
+	if c, ok := h.clients[userID]; ok {
+		c.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		c.Conn.Close()
+		delete(h.clients, userID)
+	}
 }
 
 func (h *Hub) SendToUser(userID int64, data interface{}) error {

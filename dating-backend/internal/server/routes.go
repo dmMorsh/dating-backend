@@ -19,9 +19,11 @@ import (
 func NewRouter() http.Handler {
     r := chi.NewRouter()
 
-    // Connecting common middleware as chi middlewares
-    r.Use(middleware.ChiLoggingMiddleware)
-    r.Use(middleware.ChiCORSMiddleware)
+	// Connecting common middleware as chi middlewares
+	// Request ID must run before logging so the logger can pick it up from context.
+	r.Use(middleware.ChiRequestIDMiddleware)
+	r.Use(middleware.ChiLoggingMiddleware)
+	r.Use(middleware.ChiCORSMiddleware)
 
     // Public routes
     r.Group(func(r chi.Router) {

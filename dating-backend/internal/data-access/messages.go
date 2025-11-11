@@ -1,8 +1,8 @@
 package data_access
 
 import (
+	"dating-backend/internal/logging"
 	"dating-backend/internal/models"
-	"log"
 	"time"
 )
 
@@ -14,7 +14,7 @@ func SaveMessage(msg *models.Message) (int64, error) {
 		VALUES (?, ?, ?, ?, 0, datetime('now'))
 	`, msg.ChatID, msg.SenderID, msg.ReceiverID, msg.Content)
 	if err != nil {
-		log.Printf("data-access: SaveMessage exec error chat=%d sender=%d receiver=%d: %v", msg.ChatID, msg.SenderID, msg.ReceiverID, err)
+		logging.Log.Errorf("data-access: SaveMessage exec error chat=%d sender=%d receiver=%d: %v", msg.ChatID, msg.SenderID, msg.ReceiverID, err)
 		return 0, err
 	}
 	return res.LastInsertId()
@@ -34,7 +34,7 @@ func CreateOrGetChat(userA, userB int64) (bool, int64, error) {
 	// Use a transaction and INSERT OR IGNORE to avoid race conditions
 	tx, err := DB.Begin()
 	if err != nil {
-		log.Printf("data-access: CreateOrGetChat begin tx error userA=%d userB=%d: %v", userA, userB, err)
+		logging.Log.Errorf("data-access: CreateOrGetChat begin tx error userA=%d userB=%d: %v", userA, userB, err)
 		return false, 0, err
 	}
 	defer tx.Rollback()
@@ -42,7 +42,7 @@ func CreateOrGetChat(userA, userB int64) (bool, int64, error) {
 	// Try to insert (will fail silently on unique constraint)
 	res, err := tx.Exec(`INSERT OR IGNORE INTO chats (user1_id, user2_id) VALUES (?, ?)`, userA, userB)
 	if err != nil {
-		log.Printf("data-access: CreateOrGetChat insert error userA=%d userB=%d: %v", userA, userB, err)
+		logging.Log.Errorf("data-access: CreateOrGetChat insert error userA=%d userB=%d: %v", userA, userB, err)
 		return false, 0, err
 	}
 	rowsAffected, _ := res.RowsAffected()
@@ -55,12 +55,12 @@ func CreateOrGetChat(userA, userB int64) (bool, int64, error) {
 		   OR (user1_id = ? AND user2_id = ?)
 	`, userA, userB, userB, userA).Scan(&chatID)
 	if err != nil {
-		log.Printf("data-access: CreateOrGetChat select error userA=%d userB=%d: %v", userA, userB, err)
+		logging.Log.Errorf("data-access: CreateOrGetChat select error userA=%d userB=%d: %v", userA, userB, err)
 		return false, 0, err
 	}
 
 	if err := tx.Commit(); err != nil {
-		log.Printf("data-access: CreateOrGetChat commit error userA=%d userB=%d: %v", userA, userB, err)
+		logging.Log.Errorf("data-access: CreateOrGetChat commit error userA=%d userB=%d: %v", userA, userB, err)
 		return false, 0, err
 	}
 	return createdNew, chatID, nil
@@ -93,7 +93,7 @@ func GetChatsForUser(userID int64) ([]models.Chat, error) {
 		WHERE c.user1_id = ? OR c.user2_id = ?
 	`, userID, userID)
 	if err != nil {
-		log.Printf("data-access: GetChatsForUser query error user=%d: %v", userID, err)
+ 		logging.Log.Errorf("data-access: GetChatsForUser query error user=%d: %v", userID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -102,20 +102,20 @@ func GetChatsForUser(userID int64) ([]models.Chat, error) {
 	for rows.Next() {
 		var c models.Chat
 		var lastMessageTimeStr string
-		if err := rows.Scan(&c.ID, &c.User1ID, &c.User2ID, &c.CreatedAt, &c.LastMessage,
-			&lastMessageTimeStr, &c.LastMessageUser, &c.IsRead); err != nil {
-			log.Printf("data-access: GetChatsForUser scan error user=%d: %v", userID, err)
-			return nil, err
-		}
+ 			if err := rows.Scan(&c.ID, &c.User1ID, &c.User2ID, &c.CreatedAt, &c.LastMessage,
+ 				&lastMessageTimeStr, &c.LastMessageUser, &c.IsRead); err != nil {
+ 				logging.Log.Errorf("data-access: GetChatsForUser scan error user=%d: %v", userID, err)
+ 				return nil, err
+ 			}
 		if c.LastMessageUser == userID || c.LastMessageUser == 0 {
 			c.IsRead = true
 		}
 		if lastMessageTimeStr != "" {
 			parsedTime, err := time.Parse("2006-01-02 15:04:05", lastMessageTimeStr)
-			if err != nil {
-				log.Printf("data-access: GetChatsForUser parse time error chat=%d user=%d: %v", c.ID, userID, err)
-				return nil, err
-			}
+ 				if err != nil {
+ 					logging.Log.Errorf("data-access: GetChatsForUser parse time error chat=%d user=%d: %v", c.ID, userID, err)
+ 					return nil, err
+ 				}
 			c.LastMessageTime = parsedTime
 		}
 		chats = append(chats, c)
@@ -143,19 +143,19 @@ func GetMessagesForChat(chatID int64, beforeID, afterID *int64, limit int) ([]mo
 		`
 
 		rows, err := DB.Query(query, chatID, limit)
-		if err != nil {
-			log.Printf("data-access: GetMessagesForChat query error chat=%d: %v", chatID, err)
-			return nil, err
-		}
+ 		if err != nil {
+ 			logging.Log.Errorf("data-access: GetMessagesForChat query error chat=%d: %v", chatID, err)
+ 			return nil, err
+ 		}
 		defer rows.Close()
 
 		var msgs []models.Message
 		for rows.Next() {
 			var m models.Message
-			if err := rows.Scan(&m.ID, &m.SenderID, &m.ReceiverID, &m.Content, &m.IsRead, &m.CreatedAt); err != nil {
-					log.Printf("data-access: GetMessagesForChat scan error chat=%d: %v", chatID, err)
-					return nil, err
-				}
+ 				if err := rows.Scan(&m.ID, &m.SenderID, &m.ReceiverID, &m.Content, &m.IsRead, &m.CreatedAt); err != nil {
+ 						logging.Log.Errorf("data-access: GetMessagesForChat scan error chat=%d: %v", chatID, err)
+ 						return nil, err
+ 						}
 			msgs = append(msgs, m)
 		}
 		return msgs, nil
@@ -196,10 +196,10 @@ func GetMessagesForChat(chatID int64, beforeID, afterID *int64, limit int) ([]mo
 	args = append(args, limit)
 
 	rows, err := DB.Query(query, args...)
-	if err != nil {
-		log.Printf("data-access: GetMessagesForChat query error chat=%d: %v", chatID, err)
-		return nil, err
-	}
+ 	if err != nil {
+ 		logging.Log.Errorf("data-access: GetMessagesForChat query error chat=%d: %v", chatID, err)
+ 		return nil, err
+ 	}
 	defer rows.Close()
 
 	var msgs []models.Message
@@ -221,10 +221,10 @@ func MarkMessagesAsReadForChat(chatID int64, userID int64) (bool, error) {
 		UPDATE messages SET is_read = 1
 		WHERE chat_id = ? AND receiver_id = ? AND is_read = 0
 	`, chatID, userID)
-	if err != nil {
-		log.Printf("data-access: MarkMessagesAsReadForChat exec error chat=%d user=%d: %v", chatID, userID, err)
-		return false, err
-	}
+ 	if err != nil {
+ 		logging.Log.Errorf("data-access: MarkMessagesAsReadForChat exec error chat=%d user=%d: %v", chatID, userID, err)
+ 		return false, err
+ 	}
 	return true, nil
 }
 
@@ -243,9 +243,9 @@ func MarkMessagesAsRead(MessageIDs []int64) (bool, error) {
 	query += ")"
 
 	_, err := DB.Exec(query, args...)
-	if err != nil {
-		log.Printf("data-access: MarkMessagesAsRead exec error ids=%v: %v", MessageIDs, err)
-		return false, err
-	}
+ 	if err != nil {
+ 		logging.Log.Errorf("data-access: MarkMessagesAsRead exec error ids=%v: %v", MessageIDs, err)
+ 		return false, err
+ 	}
 	return true, nil
 }

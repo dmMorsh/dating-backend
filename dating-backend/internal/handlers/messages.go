@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	data_access "dating-backend/internal/data-access"
+	"dating-backend/internal/logging"
 	middleware "dating-backend/internal/middleware"
 	models "dating-backend/internal/models"
 	"dating-backend/internal/realtime"
@@ -28,20 +28,20 @@ import (
 func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
-		log.Printf("send message: unauthorized: %v", err)
+		logging.Log.Warnf("send message: unauthorized: %v", err)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	var msg models.Message
 	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
-		log.Printf("send message: decode error: %v", err)
+		logging.Log.Warnf("send message: decode error: %v", err)
 		http.Error(w, "invalid body", http.StatusBadRequest)
 		return
 	}
 
 	if msg.ReceiverID == 0 || msg.Content == "" {
-		log.Printf("send message: missing fields from user=%d receiver=%d", userID, msg.ReceiverID)
+		logging.Log.Warnf("send message: missing fields from user=%d receiver=%d", userID, msg.ReceiverID)
 		http.Error(w, "missing fields", http.StatusBadRequest)
 		return
 	}
@@ -49,7 +49,7 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, chatId, err := data_access.CreateOrGetChat(userID, msg.ReceiverID)
 	if err != nil {
-		log.Printf("send message: createOrGetChat error user=%d receiver=%d: %v", userID, msg.ReceiverID, err)
+		logging.Log.Errorf("send message: createOrGetChat error user=%d receiver=%d: %v", userID, msg.ReceiverID, err)
 		http.Error(w, "failed to get chat", http.StatusInternalServerError)
 		return
 	}
@@ -57,7 +57,7 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 
 	var msgId int64
 	if msgId, err = data_access.SaveMessage(&msg); err != nil {
-		log.Printf("send message: save error chat=%d sender=%d receiver=%d: %v", msg.ChatID, msg.SenderID, msg.ReceiverID, err)
+		logging.Log.Errorf("send message: save error chat=%d sender=%d receiver=%d: %v", msg.ChatID, msg.SenderID, msg.ReceiverID, err)
 		http.Error(w, "failed to save", http.StatusInternalServerError)
 		return
 	}
@@ -65,11 +65,11 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	msg.CreatedAt = time.Now()
 
 	realtime.ChatHub.SendToUser(msg.ReceiverID, map[string]interface{}{
-		"id":		msgId,
 		"type":		"message",
-		"content":	msg.Content,
+		"id":		msgId,
 		"chat_id":	msg.ChatID,
 		"user_id":	userID,
+		"content":	msg.Content,
 	})
 
 	w.WriteHeader(http.StatusCreated)
@@ -87,7 +87,7 @@ func GetChatsHandler(w http.ResponseWriter, r *http.Request) {
 
 	msgs, err := data_access.GetChatsForUser(userID)
 	if err != nil {
-		log.Printf("get chats: db error user=%d: %v", userID, err)
+		logging.Log.Errorf("get chats: db error user=%d: %v", userID, err)
 		http.Error(w, "failed to fetch chats", http.StatusInternalServerError)
 		return
 	}
@@ -106,7 +106,7 @@ func GetChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/chat/messages/")
 	chatId, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		log.Printf("get chat messages: invalid chat id '%s': %v", idStr, err)
+		logging.Log.Warnf("get chat messages: invalid chat id '%s': %v", idStr, err)
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
@@ -138,7 +138,7 @@ func GetChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
 
 	msgs, err := data_access.GetMessagesForChat(chatId, beforeID, afterID, limit)
 	if err != nil {
-		log.Printf("get chat messages: db error chat=%d: %v", chatId, err)
+		logging.Log.Errorf("get chat messages: db error chat=%d: %v", chatId, err)
 		http.Error(w, "failed to fetch messages", http.StatusInternalServerError)
 		return
 	}
@@ -153,7 +153,7 @@ func GetChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
 func MarkChatMessagesAsReadHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
-		log.Printf("mark chat read: unauthorized: %v", err)
+		logging.Log.Warnf("mark chat read: unauthorized: %v", err)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -161,14 +161,14 @@ func MarkChatMessagesAsReadHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/chat/read/")
 	chatId, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		log.Printf("mark chat read: invalid chat id '%s': %v", idStr, err)
+		logging.Log.Warnf("mark chat read: invalid chat id '%s': %v", idStr, err)
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
 
 	res, err := data_access.MarkMessagesAsReadForChat(chatId, userID)
 	if err != nil {
-		log.Printf("mark chat read: db error chat=%d user=%d: %v", chatId, userID, err)
+		logging.Log.Errorf("mark chat read: db error chat=%d user=%d: %v", chatId, userID, err)
 		http.Error(w, "failed to set messages", http.StatusInternalServerError)
 		return
 	}
@@ -185,20 +185,20 @@ type MarkMsgReadRequest struct {
 func MarkMessagesReadHandler(w http.ResponseWriter, r *http.Request) {
 	var req MarkMsgReadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("mark messages read: decode error: %v", err)
+		logging.Log.Warnf("mark messages read: decode error: %v", err)
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 
 	if len(req.MessageIDs) == 0 {
-		log.Printf("mark messages read: empty message id list")
+		logging.Log.Warn("mark messages read: empty message id list")
 		http.Error(w, "no message ids provided", http.StatusBadRequest)
 		return
 	}
 
 	_, err := data_access.MarkMessagesAsRead(req.MessageIDs)
 	if err != nil {
-		log.Printf("mark messages read: db error: %v", err)
+		logging.Log.Errorf("mark messages read: db error: %v", err)
 		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}

@@ -2,7 +2,7 @@ package data_access
 
 import (
 	"database/sql"
-	"log"
+	"dating-backend/internal/logging"
 
 	_ "modernc.org/sqlite"
 )
@@ -13,7 +13,7 @@ func InitDB() {
 	var err error
 	DB, err = sql.Open("sqlite", "./dating.db")
 	if err != nil {
-		log.Fatal(err)
+		logging.Log.Fatalw("failed to open DB", "err", err)
 	}
 
 	createUsers := `
@@ -89,31 +89,31 @@ func InitDB() {
 
 	_, err = DB.Exec(createUsers)
 	if err != nil {
-		log.Fatal(err)
+		logging.Log.Fatalw("failed to exec createUsers", "err", err)
 	}
 	_, err = DB.Exec(createSwipes)
 	if err != nil {
-		log.Fatal(err)
+		logging.Log.Fatalw("failed to exec createSwipes", "err", err)
 	}
 	_, err = DB.Exec(createSessions)
 	if err != nil {
-		log.Fatal(err)
+		logging.Log.Fatalw("failed to exec createSessions", "err", err)
 	}
 	_, err = DB.Exec(createChats)
 	if err != nil {
-		log.Fatal(err)
+		logging.Log.Fatalw("failed to exec createChats", "err", err)
 	}
 	_, err = DB.Exec(createMessages)
 	if err != nil {
-		log.Fatal(err)
+		logging.Log.Fatalw("failed to exec createMessages", "err", err)
 	}
 	_, err = DB.Exec(createUserLocations)
 	if err != nil {
-		log.Fatal(err)
+		logging.Log.Fatalw("failed to exec createUserLocations", "err", err)
 	}
 
 	// Run migrations
 	if err := migrate(DB); err != nil {
-        log.Fatal("Migration failed:", err)
+		logging.Log.Fatalw("Migration failed", "err", err)
     }
 }
