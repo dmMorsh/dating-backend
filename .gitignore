@@ -1,8 +1,8 @@
 .vscode
-/dating-backend/dating.db
-/dating-backend/debug_test.exe
+/src/dating.db
+/src/debug_test.exe
 dating.db
 debug_test.exe
 cmd\dating.db
-dating-backend/cmd
-dating-backend/cmd/myapp
+src/cmd
+src/cmd/myapp
