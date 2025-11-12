@@ -56,9 +56,8 @@ func generateSessionToken() string {
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		// Allow lack of origin or specific origin
-        origin := r.Header.Get("Origin")
-        return origin == "" || origin == "https://intellyjourney.ru"
+		// Allow all origins - adjust for production as needed
+        return true
 	},
 }
 

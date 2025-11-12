@@ -40,20 +40,12 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if msg.ReceiverID == 0 || msg.Content == "" {
-		logging.Log.Warnf("send message: missing fields from user=%d receiver=%d", userID, msg.ReceiverID)
+	if msg.ChatID == 0 || msg.ReceiverID == 0 || msg.Content == "" {
+		logging.Log.Warnf("send message: missing fields from user=%d receiver=%d chat=%d", userID, msg.ReceiverID, msg.ChatID)
 		http.Error(w, "missing fields", http.StatusBadRequest)
 		return
 	}
 	msg.SenderID = userID
-
-	_, chatId, err := data_access.CreateOrGetChat(userID, msg.ReceiverID)
-	if err != nil {
-		logging.Log.Errorf("send message: createOrGetChat error user=%d receiver=%d: %v", userID, msg.ReceiverID, err)
-		http.Error(w, "failed to get chat", http.StatusInternalServerError)
-		return
-	}
-	msg.ChatID = chatId
 
 	var msgId int64
 	if msgId, err = data_access.SaveMessage(&msg); err != nil {
